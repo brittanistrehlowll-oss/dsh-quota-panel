@@ -1,6 +1,6 @@
 {
   "name": "dsh-quota-panel",
-  "description": "Provider quota/balance widget for the dsh web surface: collapsed glanceable capsule expanding into a Harness-native card, with server-side credential proxies for DeepSeek balance and OpenCode Zen Go usage windows.",
+  "description": "计费面板 (billing panel) for the dsh web surface: provider quota/balance widget — a collapsed glanceable capsule expanding into a Harness-native card, with server-side credential proxies for DeepSeek balance and OpenCode Zen Go usage windows, bilingual (中文/English) UI.",
   "version": "0.3.0",
   "type": "module",
   "main": "lib/index.js",
@@ -12,6 +12,7 @@
   "files": [
     "lib/index.js",
     "lib/index.d.ts",
+    "lib/plugin-integration-v1.js",
     "cordis.patch.yml"
   ],
   "dsh": {
