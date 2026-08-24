@@ -1,7 +1,7 @@
 // Syntax + content check for the emitted page script (v0.3 capsule + card).
 import vm from 'node:vm';
 
-const plugin = await import('file:///D:/deepseek/dsh-quota-panel/lib/index.js');
+const plugin = await import(new URL('../lib/index.js', import.meta.url));
 
 const taps = [];
 const ctx = {
@@ -21,10 +21,16 @@ plugin.apply(ctx, {
 });
 
 const html = taps[0]('</body>');
-const start = html.indexOf('(function () {');
+// Extract the widget IIFE that follows the QUOTA_PAGE_SCRIPT_START marker
+// (the prepended integration runtime has its own IIFEs, so anchor on the
+// explicit marker rather than the first bare `(function () {`).
+const marker = '/*QUOTA_PAGE_SCRIPT_START*/';
+const markerAt = html.indexOf(marker);
+if (markerAt < 0) throw new Error('QUOTA_PAGE_SCRIPT_START marker not found — has the build changed?');
+const widgetStart = html.indexOf('(function () {', markerAt);
 const end = html.lastIndexOf('})();');
-const inner = html.slice(start, end + '})();'.length);
-if (start < 0 || end < 0) throw new Error('script markers not found');
+const inner = html.slice(widgetStart, end + '})();'.length);
+if (widgetStart < 0 || end < 0) throw new Error('script markers not found');
 
 try {
 	new vm.Script(inner);
@@ -42,7 +48,7 @@ const checks = {
 	'setExpanded toggle': inner.includes('function setExpanded') && inner.includes('capsuleEl.hidden = open') && inner.includes('cardEl.hidden = !open'),
 	'aria-expanded on capsule': inner.includes("setAttribute('aria-expanded'"),
 	'expand on capsule click': inner.includes("setExpanded(true)"),
-	'collapse button': inner.includes('收起模型额度') && inner.includes("setExpanded(false)"),
+	'collapse button': inner.includes('收起计费面板') && inner.includes("setExpanded(false)"),
 	'capsule has no text labels (额度/用量)': !inner.includes('dsh-capsule-label') && !inner.includes("'额度'") && !inner.includes("'用量 '"),
 	'capsule chevron': inner.includes('dsh-capsule-chevron'),
 	'per-provider dot map': inner.includes('CAPSULE_DOTS'),
@@ -56,14 +62,22 @@ const checks = {
 	'STATE summary for deepseek': inner.includes("summary: '¥' + total.toFixed(2)"),
 	'STATE summary for usage': inner.includes("summary: high + '%'"),
 	'expand triggers refresh': inner.includes('if (open) refreshAll()'),
-	'header title 模型额度': inner.includes('模型额度'),
-	'refresh button + aria-label': inner.includes('dsh-quota-icon') && inner.includes('刷新模型额度'),
+	'i18n dict present': inner.includes('var I18N') && inner.includes("title: '计费面板'") && inner.includes("title: 'Billing'"),
+	'lang follows navigator.language': inner.includes('/^zh/i.test'),
+	'lang toggle button': inner.includes("LANG === 'zh' ? 'EN' : '中文'") && inner.includes("setLang(LANG === 'zh' ? 'en' : 'zh')"),
+	'header title 计费面板 (Billing)': inner.includes('计费面板'),
+	'refresh button + aria-label': inner.includes('dsh-quota-icon') && inner.includes('刷新计费面板'),
 	'provider loop over ROWS': inner.includes('for (var i = 0; i < ROWS.length; i++)'),
 	'progress bar': inner.includes('dsh-progress-fill'),
 	'caption 当前最高占用': inner.includes('当前最高占用'),
+	'caption English usageCaption': inner.includes('Highest usage'),
 	'4-tier balance text': inner.includes('建议充值') && inner.includes('余额紧张') && inner.includes('余额充足') && inner.includes('余额正常'),
+	'4-tier balance English text': inner.includes('Top up recommended') && inner.includes('Balance low') && inner.includes('Balance sufficient') && inner.includes('Balance OK'),
 	'error sub 暂时无法获取余额': inner.includes('暂时无法获取余额'),
+	'error sub Balance unavailable': inner.includes('Balance unavailable'),
 	'loading text 正在更新': inner.includes('正在更新'),
+	'loading text Updating': inner.includes('Updating'),
+	'English window labels default': inner.includes("winRolling: 'Rolling'") && inner.includes("winWeekly: 'Weekly'") && inner.includes("winMonthly: 'Monthly'"),
 	'refresh guard': inner.includes('if (refreshing) return'),
 	'hidden-page skip': inner.includes('document.hidden'),
 	'visibilitychange': inner.includes('visibilitychange'),

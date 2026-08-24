@@ -5,8 +5,9 @@
 // page adds data-ds-dark-theme with the dark token values, proving the card
 // follows the product theme instead of carrying its own palette.
 import { writeFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 
-const plugin = await import('file:///D:/deepseek/dsh-quota-panel/lib/index.js');
+const plugin = await import(new URL('../lib/index.js', import.meta.url));
 
 // Capture the injected script exactly as the plugin would produce it.
 const taps = [];
@@ -119,6 +120,7 @@ ${injected}
 </html>
 `;
 
-await writeFile('D:/deepseek/dsh-quota-panel/docs/demo.html', PAGE('dsh-quota-panel demo (light)', '', TOKENS_LIGHT + '\n' + TOKENS_DARK), 'utf8');
-await writeFile('D:/deepseek/dsh-quota-panel/docs/demo-dark.html', PAGE('dsh-quota-panel demo (dark)', ' data-ds-dark-theme', TOKENS_LIGHT + '\n' + TOKENS_DARK), 'utf8');
+const demoPage = (file) => fileURLToPath(new URL(`../docs/${file}`, import.meta.url));
+await writeFile(demoPage('demo.html'), PAGE('dsh-quota-panel demo (light)', '', TOKENS_LIGHT + '\n' + TOKENS_DARK), 'utf8');
+await writeFile(demoPage('demo-dark.html'), PAGE('dsh-quota-panel demo (dark)', ' data-ds-dark-theme', TOKENS_LIGHT + '\n' + TOKENS_DARK), 'utf8');
 console.log('demo pages written; injected script bytes:', injected.length);

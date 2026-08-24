@@ -3,13 +3,14 @@
 import { spawn } from 'node:child_process';
 import { mkdir, rm } from 'node:fs/promises';
 import { setTimeout as sleep } from 'node:timers/promises';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
-const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
+const CHROME = process.env.CHROME_PATH ?? 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const PORT = 9334;
-const USER_DATA = 'D:/deepseek/dsh-quota-panel/.chrome-verify';
+const USER_DATA = fileURLToPath(new URL('../.chrome-verify', import.meta.url));
 const url = process.argv[2] === 'dark'
-	? 'file:///D:/deepseek/dsh-quota-panel/docs/demo-dark.html'
-	: 'file:///D:/deepseek/dsh-quota-panel/docs/demo.html';
+	? pathToFileURL(fileURLToPath(new URL('../docs/demo-dark.html', import.meta.url))).href
+	: pathToFileURL(fileURLToPath(new URL('../docs/demo.html', import.meta.url))).href;
 
 await rm(USER_DATA, { recursive: true, force: true });
 await mkdir(USER_DATA, { recursive: true });

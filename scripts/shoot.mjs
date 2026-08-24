@@ -6,20 +6,24 @@
 import { spawn } from 'node:child_process';
 import { writeFile, mkdir, rm } from 'node:fs/promises';
 import { setTimeout as sleep } from 'node:timers/promises';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
-const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
+const pkgRoot = fileURLToPath(new URL('..', import.meta.url));
+const CHROME = process.env.CHROME_PATH ?? 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const PORT = 9333;
-const USER_DATA = 'D:/deepseek/dsh-quota-panel/.chrome-cdp';
+const USER_DATA = fileURLToPath(new URL('../.chrome-cdp', import.meta.url));
+const doc = (file) => pathToFileURL(fileURLToPath(new URL(`../docs/${file}`, import.meta.url))).href;
+const shot = (file) => fileURLToPath(new URL(`../docs/${file}`, import.meta.url));
 const SHOTS = {
 	light: {
-		url: 'file:///D:/deepseek/dsh-quota-panel/docs/demo.html',
-		collapsed: 'D:/deepseek/dsh-quota-panel/docs/screenshot-light.png',
-		expanded: 'D:/deepseek/dsh-quota-panel/docs/screenshot-light-expanded.png'
+		url: doc('demo.html'),
+		collapsed: shot('screenshot-light.png'),
+		expanded: shot('screenshot-light-expanded.png')
 	},
 	dark: {
-		url: 'file:///D:/deepseek/dsh-quota-panel/docs/demo-dark.html',
-		collapsed: 'D:/deepseek/dsh-quota-panel/docs/screenshot-dark.png',
-		expanded: 'D:/deepseek/dsh-quota-panel/docs/screenshot-dark-expanded.png'
+		url: doc('demo-dark.html'),
+		collapsed: shot('screenshot-dark.png'),
+		expanded: shot('screenshot-dark-expanded.png')
 	}
 };
 const mode = process.argv[2] || 'both';
