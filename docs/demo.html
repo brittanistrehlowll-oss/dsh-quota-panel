@@ -80,9 +80,173 @@ window.fetch = function (url) {
   return Promise.resolve({ json: function () { return Promise.resolve(data); } });
 };
 </script>
-<script>(function () {
+<script>/**
+ * DSH Plugin Integration v1 — internal browser runtime (not a product feature).
+ *
+ * A tiny, dependency-free, idempotent-singleton coordinator for independent
+ * DSH page plugins. It exists so plugins can share a small capability
+ * contract (register / status snapshot / lifecycle hooks) through one neutral
+ * global, WITHOUT creating any user-visible unified UI (no dock, no overview,
+ * no console, no brand).
+ *
+ * Why this exists: dsh-lifecycle, dsh-quota-panel and dsh-pet-shura are
+ * installed independently and inject their own page scripts. When several are
+ * present we want a clean seam between them (e.g. lifecycle hosts a compact
+ * quota capsule without reaching into quota's DOM classes). This runtime is
+ * that seam — and it doubles as the internal extension point a future
+ * "Whale Breath"/鲸息 layer can reuse without anyone rearchitecting.
+ *
+ * Contract (each plugin registers one module):
+ * {
+ *   id,            // unique module id, e.g. 'quota', 'lifecycle', 'guardian'
+ *   kind,          // 'resource' | 'control' | 'ambient'  (informational)
+ *   title,         // short display label (informational only)
+ *   getSnapshot(), // () => plain JSON-able status object  (guarded)
+ *   actions,       // { name: fn() } actions controllable by peers (guarded)
+ *   mountCompact?,// (container) => void — render own compact self into a host-provided node
+ *   unmountCompact?, // () => void — take the compact self back out
+ *   openDetail?    // () => void — open full detail
+ * }
+ *
+ * Guarantees:
+ *  - Idempotent: repeated injection of this file never creates a second runtime.
+ *  - Order-independent: late-loading plugins and late-loading shells both work.
+ *  - Failure isolation: a throwing listener or module never breaks the runtime.
+ *  - Version boundary: a future v2 uses a different key; here we stay at v1.
+ *  - NO DOM is touched by this runtime itself; UI stays in each plugin.
+ *
+ * The runtime may be built and unit-tested standalone (see tests/contract.test.mjs).
+ */
+
+/* global window, document */
+(function (global) {
+	'use strict';
+
+	var KEY = 'DSH_PLUGIN_INTEGRATION_V1';
+	var VERSION = 1;
+
+	// Already installed → reuse (and if a mismatched version exists, leave it alone).
+	if (global[KEY]) return;
+
+	var modules = new Map(); // id -> module
+	var listeners = new Set(); // listener fns
+
+	function safe(fn, label) {
+		try {
+			return fn();
+		} catch (error) {
+			// A failing module/listener must never poison the runtime.
+			try {
+				// eslint-disable-next-line no-console
+				if (global.console && global.console.warn) global.console.warn('[dsh-plugin-integration]', label || '', error);
+			} catch { /* never throw from the safety net */ }
+			return undefined;
+		}
+	}
+
+	function broadcast(event) {
+		var snapshot = Array.from(listeners);
+		for (var i = 0; i < snapshot.length; i++) {
+			// Capture to avoid a listener removing itself mid-loop breaking the rest.
+			(function (fn) { safe(function () { fn(event); }, 'listener'); })(snapshot[i]);
+		}
+	}
+
+	var api = {
+		version: VERSION,
+		key: KEY,
+
+		/** Register (or update) a module. Returns true when newly added. */
+		register: function (module) {
+			if (!module || typeof module.id !== 'string' || !module.id) return false;
+			var isNew = !modules.has(module.id);
+			modules.set(module.id, module);
+			// Notify peers so a late-registering module is discovered by an
+			// already-running shell, and vice versa.
+			safe(function () { broadcast({ type: isNew ? 'register' : 'update', id: module.id, module: module }); }, 'register.broadcast');
+			return isNew;
+		},
+
+		/** Remove a module. Returns true when it existed. */
+		unregister: function (id) {
+			if (!modules.has(id)) return false;
+			modules.delete(id);
+			safe(function () { broadcast({ type: 'unregister', id: id }); }, 'unregister.broadcast');
+			return true;
+		},
+
+		/** Return a module by id, or null. */
+		get: function (id) {
+			return modules.get(id) || null;
+		},
+
+		/** Whether a module with this id is registered. */
+		has: function (id) {
+			return modules.has(id);
+		},
+
+		/** List known modules (array of `{ id, kind, title }`), stable order. */
+		list: function () {
+			return Array.from(modules.values()).map(function (m) {
+				return { id: m.id, kind: m.kind || '', title: m.title || '' };
+			});
+		},
+
+		/**
+		 * Subscribe to integration events. Returns an unsubscribe function.
+		 * Events: { type: 'register'|'update'|'unregister', id }.
+		 */
+		subscribe: function (listener) {
+			if (typeof listener !== 'function') return function () {};
+			listeners.add(listener);
+			var active = true;
+			return function () {
+				if (!active) return;
+				active = false;
+				listeners.delete(listener);
+			};
+		},
+
+		/** Read a module's status snapshot defensively (null when N/A or it throws). */
+		snapshotOf: function (id) {
+			var m = modules.get(id);
+			if (!m || typeof m.getSnapshot !== 'function') return null;
+			var value = safe(function () { return m.getSnapshot(); }, 'snapshot.' + id);
+			return value === undefined ? null : value;
+		},
+
+		/** Invoke one of a module's actions defensively; returns true when called. */
+		callAction: function (id, name) {
+			var m = modules.get(id);
+			if (!m || !m.actions || typeof m.actions[name] !== 'function') return false;
+			safe(function () { m.actions[name](); }, 'action.' + id + '.' + name);
+			return true;
+		},
+
+		/** Ask a module to render its compact self into a host-provided container. */
+		mountCompact: function (id, container) {
+			var m = modules.get(id);
+			if (!m || typeof m.mountCompact !== 'function' || !container) return false;
+			safe(function () { m.mountCompact(container); }, 'mountCompact.' + id);
+			return true;
+		},
+
+		/** Ask a module to detach its compact self. */
+		unmountCompact: function (id) {
+			var m = modules.get(id);
+			if (!m || typeof m.unmountCompact !== 'function') return false;
+			safe(function () { m.unmountCompact(); }, 'unmountCompact.' + id);
+			return true;
+		}
+	};
+
+	global[KEY] = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+/*QUOTA_PAGE_SCRIPT_START*/
+(function () {
   var AUTO_MS = 60000;
-  var ROWS = [{"id":"deepseek","label":"DeepSeek","format":"deepseek-balance","windowLabels":{"rolling":"滚","weekly":"周","monthly":"月"},"warnPercent":70,"errorPercent":90,"balanceTiers":{"critical":10,"warn":20,"healthy":50}},{"id":"opencode-go","label":"OpenCode Go","format":"opencode-usage","windowLabels":{"rolling":"五","weekly":"周","monthly":"月"},"warnPercent":70,"errorPercent":90,"balanceTiers":{"critical":10,"warn":20,"healthy":50}}];
+  var ROWS = [{"id":"deepseek","label":"DeepSeek","format":"deepseek-balance","windowLabels":null,"warnPercent":70,"errorPercent":90,"balanceTiers":{"critical":10,"warn":20,"healthy":50}},{"id":"opencode-go","label":"OpenCode Go","format":"opencode-usage","windowLabels":{"rolling":"五","weekly":"周","monthly":"月"},"warnPercent":70,"errorPercent":90,"balanceTiers":{"critical":10,"warn":20,"healthy":50}}];
   var panelId = 'dsh-quota-panel';
   var capsuleId = 'dsh-quota-capsule';
   var cardId = 'dsh-quota-card';
@@ -92,8 +256,102 @@ window.fetch = function (url) {
   var CAPSULE_VALUES = {}; // spec.id -> capsule value element
   var capsuleEl = null;
   var cardEl = null;
+  var panelEl = null;
   var refreshBtn = null;
+  var collapseBtn = null;
+  var langBtn = null;
   var refreshing = false;
+
+  // ── Bilingual UI (中文 / English) ──────────────────────────
+  // Default follows navigator.language; a manual choice (zh/en) is
+  // persisted in localStorage and wins over the browser default.
+  var LANG_KEY = 'dsh.quota.lang';
+  var LANG = (function () {
+    try {
+      var saved = localStorage.getItem(LANG_KEY);
+      if (saved === 'zh' || saved === 'en') return saved;
+    } catch (e) { /* ignore */ }
+    return /^zh/i.test((navigator.language || 'en')) ? 'zh' : 'en';
+  })();
+  var I18N = {
+    zh: {
+      title: '计费面板',
+      ariaExpand: '展开计费面板',
+      ariaRefresh: '刷新计费面板',
+      ariaCollapse: '收起计费面板',
+      ariaLang: '切换语言',
+      updating: '正在更新…',
+      balanceUnavailable: '暂时无法获取余额',
+      balanceInvalid: '余额数据异常',
+      tierRecharge: '建议充值',
+      tierTight: '余额紧张',
+      tierOk: '余额正常',
+      tierSurplus: '余额充足',
+      usageUnavailable: '暂时无法获取用量',
+      usageCaption: '当前最高占用 {h}%',
+      resetsSoon: '即将重置',
+      days: '{n}天',
+      hours: '{n}小时',
+      minutes: '{n}分',
+      resetsAt: '重置于',
+      winRolling: '滚',
+      winWeekly: '周',
+      winMonthly: '月'
+    },
+    en: {
+      title: 'Billing',
+      ariaExpand: 'Expand billing',
+      ariaRefresh: 'Refresh billing',
+      ariaCollapse: 'Collapse billing',
+      ariaLang: 'Switch language',
+      updating: 'Updating…',
+      balanceUnavailable: 'Balance unavailable',
+      balanceInvalid: 'Invalid balance data',
+      tierRecharge: 'Top up recommended',
+      tierTight: 'Balance low',
+      tierOk: 'Balance OK',
+      tierSurplus: 'Balance sufficient',
+      usageUnavailable: 'Usage unavailable',
+      usageCaption: 'Highest usage {h}%',
+      resetsSoon: 'resets soon',
+      days: '{n}d',
+      hours: '{n}h',
+      minutes: '{n}m',
+      resetsAt: 'resets at',
+      winRolling: 'Rolling',
+      winWeekly: 'Weekly',
+      winMonthly: 'Monthly'
+    }
+  };
+  function t(key) { return (I18N[LANG] && I18N[LANG][key]) || I18N.zh[key] || key; }
+  function fill(template, vars) {
+    return template.replace(/\{(w+)\}/g, function (_, k) { return vars[k] !== undefined ? vars[k] : '{' + k + '}'; });
+  }
+  // Window labels: explicit user labels win (even when null-valued the
+  // shipped defaults are replaced per-language); null specs follow the
+  // UI language's default labels.
+  function windowLabels(spec) {
+    if (spec.windowLabels) {
+      return {
+        rolling: spec.windowLabels.rolling || t('winRolling'),
+        weekly: spec.windowLabels.weekly || t('winWeekly'),
+        monthly: spec.windowLabels.monthly || t('winMonthly')
+      };
+    }
+    return { rolling: t('winRolling'), weekly: t('winWeekly'), monthly: t('winMonthly') };
+  }
+  function setLang(next) {
+    if (next === LANG) return;
+    LANG = next;
+    try { localStorage.setItem(LANG_KEY, LANG); } catch (e) { /* ignore */ }
+    cardEl.querySelector('.dsh-quota-title').textContent = t('title');
+    capsuleEl.setAttribute('aria-label', t('ariaExpand'));
+    refreshBtn.setAttribute('aria-label', t('ariaRefresh'));
+    collapseBtn.setAttribute('aria-label', t('ariaCollapse'));
+    langBtn.setAttribute('aria-label', t('ariaLang'));
+    langBtn.textContent = LANG === 'zh' ? 'EN' : '中文';
+    refreshAll();
+  }
 
   function el(tag, cls, text) {
     var node = document.createElement(tag);
@@ -104,7 +362,7 @@ window.fetch = function (url) {
 
   function fmtReset(iso) {
     var ms = new Date(iso).getTime() - Date.now();
-    if (!isFinite(ms) || ms <= 0) return '即将重置';
+    if (!isFinite(ms) || ms <= 0) return t('resetsSoon');
     var s = Math.floor(ms / 1000);
     var d = Math.floor(s / 86400); s -= d * 86400;
     var h = Math.floor(s / 3600); s -= h * 3600;
@@ -112,16 +370,80 @@ window.fetch = function (url) {
     if (m === 60) { h += 1; m = 0; }
     if (h === 24) { d += 1; h = 0; }
     var parts = [];
-    if (d) parts.push(d + '天');
-    if (h) parts.push(h + '小时');
-    if (m) parts.push(m + '分');
-    return parts.length ? parts.join('') : '即将重置';
+    if (d) parts.push(fill(t('days'), { n: d }));
+    if (h) parts.push(fill(t('hours'), { n: h }));
+    if (m) parts.push(fill(t('minutes'), { n: m }));
+    return parts.length ? parts.join('') : t('resetsSoon');
   }
 
   function setState(view, state) {
     view.root.classList.remove('state-loading', 'state-ok', 'state-warn', 'state-error');
     view.root.classList.add('state-' + state);
   }
+
+  // ── Provider renderer registry ─────────────────────────────────────────
+  // One adapter per format. Each adapter owns response parsing + status
+  // derivation + the derived model used by BOTH the compact capsule and the
+  // expanded card, so DOM rendering stays decoupled from provider response
+  // shapes. Adding a provider = adding an adapter; config format unchanged.
+  var PROVIDER_RENDERERS = {
+    'deepseek-balance': {
+      kind: 'balance',
+      // compact text for one provider value
+      compactValue: function (model) { return model ? model.value : '—'; },
+      // derive { status, summary } from parsed data
+      deriveState: function (data, spec) {
+        var info = data && data.balance_infos && data.balance_infos[0];
+        if (!data || data.error || !info) return { status: 'error', summary: '—', title: data && data.error ? String(data.error) : 'no balance info' };
+        var total = Number(info.total_balance);
+        if (!Number.isFinite(total)) return { status: 'error', summary: '—', title: 'non-numeric total_balance' };
+        var tiers = spec.balanceTiers || { critical: 10, warn: 20, healthy: 50 };
+        var status;
+        if (total <= tiers.critical) status = 'error';
+        else if (total <= tiers.warn) status = 'warn';
+        else status = 'ok';
+        return {
+          status: status,
+          summary: '¥' + total.toFixed(2),
+          value: '¥' + total.toFixed(2),
+          tier: total <= tiers.critical ? 'recharge' : total <= tiers.warn ? 'tight' : total <= tiers.healthy ? 'ok' : 'surplus',
+          title: 'currency: ' + info.currency + '\ngranted: ¥' + info.granted_balance + '\ntopped-up: ¥' + info.topped_up_balance
+        };
+      },
+      // filled into the expanded-card balance view
+      detailModel: function (model) { return model; }
+    },
+    'opencode-usage': {
+      kind: 'usage',
+      compactValue: function (model) { return model ? model.summary : '—'; },
+      deriveState: function (data, spec, helpers) {
+        var u = data && data.usage;
+        if (!data || data.error || !u || !u.rolling || !u.weekly || !u.monthly) {
+          return { status: 'error', summary: '—', title: data && data.error ? String(data.error) : 'usage unavailable' };
+        }
+        var rp = Number(u.rolling.percent) || 0;
+        var wp = Number(u.weekly.percent) || 0;
+        var mp = Number(u.monthly.percent) || 0;
+        var high = Math.max(rp, wp, mp);
+        var status;
+        if (high >= spec.errorPercent) status = 'error';
+        else if (high >= spec.warnPercent) status = 'warn';
+        else status = 'ok';
+        var labels = helpers.windowLabels(spec);
+        return {
+          status: status,
+          summary: high + '%',
+          usageText: labels.rolling + ' ' + rp + '%' + ' · ' + labels.weekly + ' ' + wp + '%' + ' · ' + labels.monthly + ' ' + mp + '%',
+          high: high,
+          progressPct: Math.min(Math.max(high, 0), 100),
+          caption: helpers.fill(helpers.t('usageCaption'), { h: high }),
+          title: 'rolling: ' + rp + '%（' + helpers.t('resetsAt') + ' ' + helpers.fmtReset(u.rolling.resetsAt) + '）' + '\nweekly: ' + wp + '%（' + helpers.t('resetsAt') + ' ' + helpers.fmtReset(u.weekly.resetsAt) + '）' + '\nmonthly: ' + mp + '%（' + helpers.t('resetsAt') + ' ' + helpers.fmtReset(u.monthly.resetsAt) + '）'
+        };
+      },
+      detailModel: function (model) { return model; }
+    }
+  };
+  function rendererFor(spec) { return PROVIDER_RENDERERS[spec.format] || null; }
 
   // Collapsed capsule: each provider renders its own dot + value pair with
   // independent status. Usage values are battery-colored (green/amber/red
@@ -161,9 +483,9 @@ window.fetch = function (url) {
     if (spec.format === 'deepseek-balance') {
       value = el('span', 'dsh-provider-value', '—');
       head.appendChild(value);
-      sub = el('div', 'dsh-provider-sub', '正在更新…');
+      sub = el('div', 'dsh-provider-sub', t('updating'));
     } else {
-      usage = el('div', 'dsh-usage-values', '正在更新…');
+      usage = el('div', 'dsh-usage-values', t('updating'));
       track = el('div', 'dsh-progress');
       progress = el('div', 'dsh-progress-fill');
       track.appendChild(progress);
@@ -181,95 +503,65 @@ window.fetch = function (url) {
     return { root, dot, name: nameEl, value, sub, usage, progress, caption };
   }
 
-  function renderDeepSeek(view, spec, data) {
-    var info = data && data.balance_infos && data.balance_infos[0];
-    if (!data || data.error || !info) {
+  // Render one provider's data (or error) into its view via its registered
+  // renderer in PROVIDER_RENDERERS. Falls back to a conservative error row when
+  // the format has no renderer.
+  function applyRender(view, spec, data, error) {
+    var renderer = rendererFor(spec);
+    var helpers = {
+      t: t,
+      fill: fill,
+      windowLabels: windowLabels,
+      fmtReset: fmtReset
+    };
+    if (error) {
       setState(view, 'error');
-      view.value.textContent = '—';
-      view.sub.textContent = '暂时无法获取余额';
-      view.root.title = data && data.error ? String(data.error) : 'no balance info';
+      if (renderer && renderer.kind === 'usage') {
+        view.usage.textContent = t('usageUnavailable');
+        view.progress.style.width = '0%';
+        view.caption.textContent = '';
+      } else {
+        view.value.textContent = '—';
+        view.sub.textContent = t('balanceUnavailable');
+      }
+      view.root.title = String(error && error.message ? error.message : error);
       STATE[spec.id] = { status: 'error', summary: '—' };
       renderCapsule();
       return;
     }
-    var total = Number(info.total_balance);
-    if (!Number.isFinite(total)) {
+    var model = renderer ? renderer.deriveState(data, spec, helpers) : { status: 'error', summary: '—' };
+    if (!model || model.status === 'error') {
+      // model.status === 'error' covers both "no info" and unusable numbers;
+      // pick per-kind copy so the message reads naturally.
       setState(view, 'error');
-      view.value.textContent = '—';
-      view.sub.textContent = '余额数据异常';
-      view.root.title = 'non-numeric total_balance';
+      if (renderer && renderer.kind === 'usage') {
+        view.usage.textContent = t('usageUnavailable');
+        view.progress.style.width = '0%';
+        view.caption.textContent = '';
+      } else {
+        view.value.textContent = '—';
+        view.sub.textContent = t('balanceUnavailable');
+      }
+      view.root.title = (model && model.title) || 'no info';
       STATE[spec.id] = { status: 'error', summary: '—' };
       renderCapsule();
       return;
     }
-    view.value.textContent = '¥' + total.toFixed(2);
-    var tiers = spec.balanceTiers || { critical: 10, warn: 20, healthy: 50 };
-    var status;
-    if (total <= tiers.critical) {
-      status = 'error';
-      view.sub.textContent = '建议充值';
-    } else if (total <= tiers.warn) {
-      status = 'warn';
-      view.sub.textContent = '余额紧张';
-    } else if (total <= tiers.healthy) {
-      status = 'ok';
-      view.sub.textContent = '余额正常';
+    setState(view, model.status);
+    STATE[spec.id] = { status: model.status, summary: model.summary };
+    if (renderer && renderer.kind === 'usage') {
+      view.usage.textContent = model.usageText;
+      view.progress.style.width = model.progressPct + '%';
+      view.caption.textContent = model.caption;
+      view.root.title = model.title;
     } else {
-      status = 'ok';
-      view.sub.textContent = '余额充足';
+      view.value.textContent = model.value;
+      var tierText = model.tier === 'recharge' ? t('tierRecharge')
+        : model.tier === 'tight' ? t('tierTight')
+          : model.tier === 'surplus' ? t('tierSurplus') : t('tierOk');
+      view.sub.textContent = tierText;
+      view.root.title = model.title;
     }
-    setState(view, status);
-    view.root.title = 'currency: ' + info.currency + '\ngranted: ¥' + info.granted_balance + '\ntopped-up: ¥' + info.topped_up_balance;
-    STATE[spec.id] = { status: status, summary: '¥' + total.toFixed(2) };
-    renderCapsule();
-  }
-
-  function renderUsage(view, spec, data) {
-    var u = data && data.usage;
-    if (!data || data.error || !u || !u.rolling || !u.weekly || !u.monthly) {
-      setState(view, 'error');
-      view.usage.textContent = '暂时无法获取用量';
-      view.progress.style.width = '0%';
-      view.caption.textContent = '';
-      view.root.title = data && data.error ? String(data.error) : 'usage unavailable';
-      STATE[spec.id] = { status: 'error', summary: '—' };
-      renderCapsule();
-      return;
-    }
-    var r = u.rolling, w = u.weekly, m = u.monthly;
-    var rp = Number(r.percent) || 0;
-    var wp = Number(w.percent) || 0;
-    var mp = Number(m.percent) || 0;
-    var high = Math.max(rp, wp, mp);
-    var labels = spec.windowLabels || { rolling: '滚', weekly: '周', monthly: '月' };
-
-    view.usage.textContent = labels.rolling + ' ' + rp + '%' + ' · ' + labels.weekly + ' ' + wp + '%' + ' · ' + labels.monthly + ' ' + mp + '%';
-    view.progress.style.width = Math.min(Math.max(high, 0), 100) + '%';
-    view.caption.textContent = '当前最高占用 ' + high + '%';
-
-    var status;
-    if (high >= spec.errorPercent) status = 'error';
-    else if (high >= spec.warnPercent) status = 'warn';
-    else status = 'ok';
-    setState(view, status);
-
-    view.root.title = 'rolling: ' + rp + '%（重置于 ' + fmtReset(r.resetsAt) + '）' + '\nweekly: ' + wp + '%（重置于 ' + fmtReset(w.resetsAt) + '）' + '\nmonthly: ' + mp + '%（重置于 ' + fmtReset(m.resetsAt) + '）';
-    STATE[spec.id] = { status: status, summary: high + '%' };
-    renderCapsule();
-  }
-
-  function renderProviderError(view, spec, error) {
-    setState(view, 'error');
-    if (spec.format === 'deepseek-balance') {
-      view.value.textContent = '—';
-      view.sub.textContent = '暂时无法获取余额';
-    } else {
-      view.usage.textContent = '暂时无法获取用量';
-      view.progress.style.width = '0%';
-      view.caption.textContent = '';
-    }
-    view.root.title = String(error && error.message ? error.message : error);
-    STATE[spec.id] = { status: 'error', summary: '—' };
     renderCapsule();
   }
 
@@ -317,7 +609,8 @@ window.fetch = function (url) {
       '#dsh-quota-card .dsh-progress-fill{height:100%;width:0;border-radius:inherit;background:var(--dsw-static-deepseek-500,#4176e6);transition:width 300ms ease,background-color 160ms ease}',
       '#dsh-quota-card .state-warn .dsh-progress-fill{background:var(--dsw-static-amber-500,#f59e0b)}',
       '#dsh-quota-card .state-error .dsh-progress-fill{background:var(--dsw-static-red-500,#ef4444)}',
-      '#dsh-quota-card .dsh-usage-caption{margin-top:8px;color:var(--dsw-alias-label-secondary,#61666b);font-size:12px;line-height:18px}'
+      '#dsh-quota-card .dsh-usage-caption{margin-top:8px;color:var(--dsw-alias-label-secondary,#61666b);font-size:12px;line-height:18px}',
+      '#dsh-quota-card .dsh-quota-lang{font-size:11px;font-weight:600;letter-spacing:.2px;padding:0 3px}'
     ].join('\n');
     var style = el('style');
     style.textContent = css;
@@ -332,7 +625,7 @@ window.fetch = function (url) {
     capsuleEl = el('button', 'dsh-quota-capsule');
     capsuleEl.id = capsuleId;
     capsuleEl.type = 'button';
-    capsuleEl.setAttribute('aria-label', '展开模型额度');
+    capsuleEl.setAttribute('aria-label', t('ariaExpand'));
     capsuleEl.setAttribute('aria-expanded', 'false');
     for (var i = 0; i < ROWS.length; i++) {
       var spec = ROWS[i];
@@ -352,17 +645,23 @@ window.fetch = function (url) {
     cardEl.id = cardId;
     cardEl.hidden = true;
     var header = el('div', 'dsh-quota-header');
-    header.appendChild(el('div', 'dsh-quota-title', '模型额度'));
+    header.appendChild(el('div', 'dsh-quota-title', t('title')));
     var actions = el('div', 'dsh-quota-actions');
     refreshBtn = el('button', 'dsh-quota-icon', '↻');
     refreshBtn.type = 'button';
-    refreshBtn.setAttribute('aria-label', '刷新模型额度');
+    refreshBtn.setAttribute('aria-label', t('ariaRefresh'));
     refreshBtn.addEventListener('click', function () { refreshAll(); });
-    var collapseBtn = el('button', 'dsh-quota-icon', '▴');
+    collapseBtn = el('button', 'dsh-quota-icon', '▴');
     collapseBtn.type = 'button';
-    collapseBtn.setAttribute('aria-label', '收起模型额度');
+    collapseBtn.setAttribute('aria-label', t('ariaCollapse'));
     collapseBtn.addEventListener('click', function () { setExpanded(false); });
+    // Language toggle: shows the target language so a click switches to it.
+    langBtn = el('button', 'dsh-quota-icon dsh-quota-lang', LANG === 'zh' ? 'EN' : '中文');
+    langBtn.type = 'button';
+    langBtn.setAttribute('aria-label', t('ariaLang'));
+    langBtn.addEventListener('click', function () { setLang(LANG === 'zh' ? 'en' : 'zh'); });
     actions.appendChild(refreshBtn);
+    actions.appendChild(langBtn);
     actions.appendChild(collapseBtn);
     header.appendChild(actions);
     cardEl.appendChild(header);
@@ -382,10 +681,9 @@ window.fetch = function (url) {
     try {
       var response = await fetch('/api/quota/' + encodeURIComponent(spec.id), { cache: 'no-store' });
       var data = await response.json();
-      if (spec.format === 'deepseek-balance') renderDeepSeek(view, spec, data);
-      else renderUsage(view, spec, data);
+      applyRender(view, spec, data, null);
     } catch (error) {
-      renderProviderError(view, spec, error);
+      applyRender(view, spec, null, error);
     }
   }
 
@@ -406,8 +704,8 @@ window.fetch = function (url) {
   function mount() {
     if (document.getElementById(panelId)) return;
     injectStyles();
-    var panel = createPanel();
-    document.body.appendChild(panel);
+    panelEl = createPanel();
+    document.body.appendChild(panelEl);
     refreshAll();
     setInterval(function () {
       if (!document.hidden) refreshAll();
@@ -415,6 +713,64 @@ window.fetch = function (url) {
     document.addEventListener('visibilitychange', function () {
       if (!document.hidden) refreshAll();
     });
+    registerQuotaModule();
+  }
+
+  // ── Internal integration registration (user-invisible seam) ───────────
+  // Runs after mount so the DOM (capsule, card, state) exists. Uses the
+  // neutral runtime only when present; never breaks standalone behaviour.
+  function registerQuotaModule() {
+    try {
+      var rt = window.DSH_PLUGIN_INTEGRATION_V1;
+      if (!rt) return;
+      rt.register({
+        id: 'quota',
+        kind: 'resource',
+        title: 'Quota',
+        getSnapshot: function () {
+          var rows = ROWS.map(function (spec) {
+            var s = STATE[spec.id] || { status: 'loading', summary: '…' };
+            return {
+              id: spec.id,
+              label: spec.label,
+              format: spec.format,
+              status: s.status,
+              summary: s.summary
+            };
+          });
+          var levels = rows.map(function (r) { return r.status; });
+          var level = levels.indexOf('error') >= 0 ? 'error' : (levels.indexOf('warn') >= 0 ? 'warn' : (rows.length ? 'ok' : 'unknown'));
+          return { level: level, providers: rows, updatedAt: Date.now() };
+        },
+        actions: {
+          refresh: function () { refreshAll(); }
+        },
+        mountCompact: function (container) {
+          // Render our own compact self into a host-provided container. The
+          // host (lifecycle) must NOT style our internals; we keep our capsule
+          // + card behaviour. Position the capsule inline, card floats above.
+          if (!container || !capsuleEl || container.contains(capsuleEl)) return;
+          capsuleEl.style.position = 'static';
+          capsuleEl.style.transform = 'none';
+          container.appendChild(capsuleEl);
+          if (cardEl && !cardEl.hidden) cardEl.hidden = true;
+        },
+        unmountCompact: function () {
+          // Take the capsule back out and restore it inside our own panel.
+          if (!capsuleEl || !cardEl || !panelEl) return;
+          if (capsuleEl.parentElement && capsuleEl.parentElement !== panelEl) {
+            capsuleEl.remove();
+          }
+          capsuleEl.style.position = '';
+          capsuleEl.style.transform = '';
+          panelEl.appendChild(capsuleEl);
+          if (cardEl && !cardEl.hidden) cardEl.hidden = true;
+        },
+        openDetail: function () {
+          if (setExpanded) setExpanded(true);
+        }
+      });
+    } catch { /* an exception here must never break the widget */ }
   }
 
   if (document.readyState === 'loading') {
