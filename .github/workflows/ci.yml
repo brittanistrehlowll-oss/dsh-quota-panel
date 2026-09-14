@@ -2,7 +2,10 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    # The default branch is master; a [main] filter means this workflow never
+    # actually fires on a push (the first run it ever recorded failed with zero
+    # jobs). List master, and keep main for a future rename.
+    branches: [master, main]
   pull_request:
   workflow_dispatch:
 
