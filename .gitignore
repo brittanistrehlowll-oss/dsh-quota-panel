@@ -3,3 +3,8 @@ node_modules/
 .DS_Store
 .chrome-*/
 .edge-*/
+# Local review workspace: it snapshots the repo and carries a whole browser
+# profile (cookies included). Never publish it.
+docs/review-*/
+dist/
+*.tgz
