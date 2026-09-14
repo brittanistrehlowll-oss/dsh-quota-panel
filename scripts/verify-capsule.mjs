@@ -89,6 +89,12 @@ try {
   await send('Runtime.enable'); await send('Page.enable');
   await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false });
   await load();
+  // The widget picks its language from navigator.language (overridable through
+  // localStorage), so a developer machine reporting zh-CN and a CI runner
+  // reporting en-US would otherwise assert different strings. Pin the language
+  // the demo pages themselves are written in before asserting any copy.
+  await evaluate(`localStorage.setItem('dsh.quota.lang','zh')`);
+  await load();
   const base = await state();
   check('short capsule, readable one row, detail/lock hidden', base.w <= 128 && base.h === 34 && base.w/base.h <= 4 && base.small === 'grid' && base.detail === 'none' && base.lock === 'none', base);
   await layout('small text contained, no overlapping values');
