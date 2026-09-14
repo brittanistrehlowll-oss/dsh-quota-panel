@@ -23,7 +23,10 @@ jobs:
       # npm, so there is deliberately no install step. The browser scripts find
       # the Chrome that ships with the ubuntu-latest image; set CHROME_PATH here
       # if that ever moves.
-      - name: Page script: syntax + contract
+      # Quoted: a plain YAML scalar cannot contain ": ", so an unquoted step
+      # name like `Page script: syntax + contract` makes the whole workflow
+      # file invalid and every run fails with zero jobs.
+      - name: "Page script: syntax + contract"
         run: node scripts/test-page-script.mjs
 
       - name: Regenerate demo pages
@@ -35,12 +38,12 @@ jobs:
       - name: Host route envelope (offline)
         run: node scripts/verify-route.mjs
 
-      - name: Browser: both themes, geometry, lock, drag, keyboard and screenshots
+      - name: "Browser: both themes, geometry, lock, drag, keyboard and screenshots"
         run: node scripts/verify-capsule.mjs
 
       # Catches a `files` whitelist that forgot something the plugin reads at
       # import time (lib/plugin-integration-v1.js) before it ever reaches npm.
-      - name: Package: the tarball is self-sufficient
+      - name: "Package: the tarball is self-sufficient"
         run: node scripts/verify-package.mjs
 
       - uses: actions/upload-artifact@v4
