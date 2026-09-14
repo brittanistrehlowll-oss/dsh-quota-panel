@@ -1,13 +1,18 @@
 /**
- * dsh-quota-panel — provider quota card for the dsh web surface.
+ * dsh-quota-panel — draggable dual-state quota capsule with a position lock.
  */
 export const name: 'quota-panel'
-export const inject: ['webServer', 'credentials']
+/** Only credentials is required; the data carrier is discovered at apply time
+ * (the `connection` exact Fetch registry first — Web server and Desktop host —
+ * then the `webServer` route table). */
+export const inject: ['credentials']
 
 export interface WindowLabels {
   rolling?: string
   weekly?: string
   monthly?: string
+  /** (command-cost) label for the 5-hour window */
+  fiveHour?: string
 }
 
 export interface BalanceTiers {
@@ -19,33 +24,47 @@ export interface BalanceTiers {
   healthy?: number
 }
 
+export type ProviderFormat = 'deepseek-balance' | 'opencode-usage' | 'command-cost'
+
 export interface ProviderConfig {
   /** Route id, also the row key (`/api/quota/<id>`); ^[a-z0-9-]+$ */
   id: string
-  /** Provider name shown on the card, e.g. "DeepSeek" */
+  /** Provider name shown when expanded; standard long names are shortened. */
   label: string
   /** Credential reference, e.g. "DEEPSEEK_API_KEY" */
   credential: string
-  /** Quota/balance JSON endpoint to proxy (GET, Bearer auth) */
+  /**
+   * Endpoint to proxy (GET, Bearer auth). For "command-cost" this is the API
+   * BASE (https://api.commandcode.ai), not a single route: the host walks
+   * whoami → billing/credits + usage/summary and merges them.
+   * Must be https; http is accepted for loopback hosts only.
+   */
   endpoint: string
-  /** Row renderer: "deepseek-balance" | "opencode-usage" */
-  format?: 'deepseek-balance' | 'opencode-usage'
+  /** Row renderer, default "deepseek-balance" */
+  format?: ProviderFormat
   /** (deepseek-balance) balance level thresholds, defaults {10, 20, 50} */
   balanceTiers?: BalanceTiers
   /** Legacy alias for balanceTiers.warn */
   lowBalance?: number
-  /** (opencode-usage) labels for the three windows */
+  /** (opencode-usage | command-cost) labels for the windows */
   windowLabels?: WindowLabels
-  /** (opencode-usage) warn color threshold, default 70 */
+  /** (opencode-usage | command-cost) warn threshold, default 70; 0 <= warn < error <= 100 */
   warnPercent?: number
-  /** (opencode-usage) error color threshold, default 90 */
+  /** (opencode-usage | command-cost) error threshold, default 90 */
   errorPercent?: number
+  /** (command-cost) ISO code the credits are denominated in, default "USD" */
+  currency?: string
 }
 
 export interface Config {
-  /** Auto-refresh interval in ms, default 60000 */
+  /** Auto-refresh interval in ms, default 60000; 5000 <= refreshMs <= 86400000 */
   refreshMs?: number
   providers: ProviderConfig[]
 }
+
+/** Normalized body every `/api/quota/<id>` route answers with. */
+export type RouteResponse =
+  | { ok: true, data: unknown }
+  | { ok: false, error: { code: 'credentials' | 'upstream' | 'timeout' | 'network' | 'invalid-body' | 'method', status?: number, message: string } }
 
 export function apply(ctx: any, config?: Config): void

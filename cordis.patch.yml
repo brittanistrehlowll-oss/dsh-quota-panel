@@ -1,12 +1,16 @@
 # dsh-quota-panel bundle patch: mounts the quota panel into a dsh profile.
 # Applied as a profile layer when this package is installed with
 # `dsh plugin --profile web add "github:owner/dsh-quota-panel"`.
+#
+# Only `credentials` is required: the host half discovers its data carrier at
+# apply time (the `connection` exact Fetch registry — Web server and Desktop
+# host — then the `webServer` route table). Listing `webServer` here would park
+# the plugin forever on the Desktop app, whose composition disables that row.
 
 - insert:
     - id: quota-panel
       name: 'dsh-quota-panel'
       inject:
-        - webServer
         - credentials
       config:
         refreshMs: 60000
@@ -31,3 +35,20 @@
               monthly: 月
             warnPercent: 70
             errorPercent: 90
+          # Command Code（commandcode.ai）。command-cost 的 endpoint 是 API **根**，
+          # 不是单条 JSON 路由：宿主侧依次请求 /alpha/whoami（取可选 orgId，无 org 时
+          # 自动省略该参数）→ /alpha/billing/credits + /alpha/usage/summary，合并成一个
+          # body 交给浏览器；API key 全程不出宿主。行首展示本期消费（USD），并按
+          # 「消费 + 剩余额度」重建月度额度做进度条。
+          # 2026-09-11 实测：credits.monthlyCredits 53.77 + usage.totalCost 16.24 ≈ 70/月。
+          - id: command
+            label: Command Code
+            credential: COMMAND_API_KEY
+            endpoint: https://api.commandcode.ai
+            format: command-cost
+            windowLabels:
+              fiveHour: 五
+              weekly: 周
+            warnPercent: 70
+            errorPercent: 90
+            currency: USD

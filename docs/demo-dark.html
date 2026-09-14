@@ -60,24 +60,47 @@ body[data-ds-dark-theme] {
     <div class="chat">
       <div class="msg"><div class="who">助手</div><p>你好！我是运行在 DeepSeek Harness 里的编程智能体。</p></div>
       <div class="msg"><div class="who">用户</div><p>帮我看看账户余额和用量。</p></div>
-      <div class="msg"><div class="who">助手</div><p>好的，右下角卡片实时显示各提供方的配额情况。</p></div>
+      <div class="msg"><div class="who">助手</div><p>左下角是一行额度胶囊。点击展开、再次点击收起；展开后可锁定或解锁位置。这里使用示例数据，不连接真实账户。</p></div>
     </div>
     <div class="composer"><div class="box">输入消息…</div></div>
   </div>
 </div>
 <script>
+window.__DSH_QUOTA_DEMO__ = { fail: (function () {
+  var match = /[?&]fail=([^&]*)/.exec(location.search);
+  return match && match[1] ? decodeURIComponent(match[1]).split(',') : [];
+})() };
 window.fetch = function (url) {
+  var id = String(url).split('/').pop();
+  var demo = window.__DSH_QUOTA_DEMO__;
+  if ((demo.fail || []).indexOf(id) >= 0) {
+    return Promise.resolve({ status: 502, ok: false, text: function () {
+      return Promise.resolve(JSON.stringify({ ok: false, error: { code: 'upstream', status: 502, message: 'demo outage' } }));
+    } });
+  }
   var data;
-  if (String(url).indexOf('deepseek') >= 0) {
+  if (id === 'deepseek') {
     data = { is_available: true, balance_infos: [{ currency: 'CNY', total_balance: '58.36', granted_balance: '0.00', topped_up_balance: '58.36' }] };
-  } else {
+  } else if (id === 'opencode-go') {
     data = { usage: {
       rolling: { status: 'ok', percent: 10, resetsAt: new Date(Date.now() + 4 * 3600e3).toISOString() },
       weekly:  { status: 'ok', percent: 45, resetsAt: new Date(Date.now() + 2 * 86400e3).toISOString() },
-      monthly: { status: 'ok', percent: 22, resetsAt: new Date(Date.now() + 27 * 86400e3).toISOString() }
+      monthly: { status: 'ok', percent: 86, resetsAt: new Date(Date.now() + 27 * 86400e3).toISOString() }
     } };
+  } else {
+    data = {
+      credits: { monthlyCredits: 53.7672201717, purchasedCredits: 0, freeCredits: 0 },
+      windowLimits: {
+        limited: true, exceeded: null,
+        fiveHour: { used: 0.1252328, cap: 14, exceeded: false, resetAt: Date.now() + 3 * 3600e3 },
+        weekly: { used: 0.1252328, cap: 35, exceeded: false, resetAt: Date.now() + 5 * 86400e3 }
+      },
+      usage: { totalMonthlyCredits: 16.2385200429, totalCount: 2787, totalCost: 16.2385200429, averageCost: 0.005826523158557588, successRate: 100, totalTokensIn: 800696970, totalTokensOut: 2290409, totalTokens: 802987379, periodBasis: 'billing-period' }
+    };
   }
-  return Promise.resolve({ json: function () { return Promise.resolve(data); } });
+  return Promise.resolve({ status: 200, ok: true, text: function () {
+    return Promise.resolve(JSON.stringify({ ok: true, data: data }));
+  } });
 };
 </script>
 <script>/**
@@ -245,21 +268,25 @@ window.fetch = function (url) {
 
 /*QUOTA_PAGE_SCRIPT_START*/
 (function () {
-  var AUTO_MS = 60000;
-  var ROWS = [{"id":"deepseek","label":"DeepSeek","format":"deepseek-balance","windowLabels":null,"warnPercent":70,"errorPercent":90,"balanceTiers":{"critical":10,"warn":20,"healthy":50}},{"id":"opencode-go","label":"OpenCode Go","format":"opencode-usage","windowLabels":{"rolling":"五","weekly":"周","monthly":"月"},"warnPercent":70,"errorPercent":90,"balanceTiers":{"critical":10,"warn":20,"healthy":50}}];
+  var AUTO_MS = 5000;
+  var ROWS = [{"id":"deepseek","label":"DeepSeek","format":"deepseek-balance","windowLabels":null,"warnPercent":70,"errorPercent":90,"balanceTiers":{"critical":10,"warn":20,"healthy":50},"currency":null},{"id":"opencode-go","label":"OpenCode Go","format":"opencode-usage","windowLabels":{"rolling":"五","weekly":"周","monthly":"月","fiveHour":""},"warnPercent":70,"errorPercent":90,"balanceTiers":{"critical":10,"warn":20,"healthy":50},"currency":null},{"id":"command","label":"Command Code","format":"command-cost","windowLabels":{"rolling":"","weekly":"周","monthly":"","fiveHour":"五"},"warnPercent":70,"errorPercent":90,"balanceTiers":{"critical":10,"warn":20,"healthy":50},"currency":null}];
   var panelId = 'dsh-quota-panel';
   var capsuleId = 'dsh-quota-capsule';
-  var cardId = 'dsh-quota-card';
-  var VIEWS = {};      // spec.id -> view object
-  var STATE = {};      // spec.id -> { status, summary }
+  var cardId = 'dsh-quota-detail';
+  var STATE = {};      // spec.id -> { status, summary, hint }
+  var LASTMODEL = {};  // spec.id -> { model, at } last successful reading
   var CAPSULE_DOTS = {};   // spec.id -> capsule dot element
   var CAPSULE_VALUES = {}; // spec.id -> capsule value element
+  var DETAIL_VALUES = {}; // spec.id -> expanded value element
   var capsuleEl = null;
-  var cardEl = null;
+  var compactEl = null;
+  var detailEl = null;
   var panelEl = null;
-  var refreshBtn = null;
-  var collapseBtn = null;
-  var langBtn = null;
+  var lockEl = null;
+  var refreshEl = null;
+  var locked = false;
+  var expanded = false;
+  var mountSlot = null;
   var refreshing = false;
 
   // ── Bilingual UI (中文 / English) ──────────────────────────
@@ -277,6 +304,7 @@ window.fetch = function (url) {
     zh: {
       title: '计费面板',
       ariaExpand: '展开计费面板',
+      capsuleHint: '拖动可移动',
       ariaRefresh: '刷新计费面板',
       ariaCollapse: '收起计费面板',
       ariaLang: '切换语言',
@@ -289,6 +317,14 @@ window.fetch = function (url) {
       tierSurplus: '余额充足',
       usageUnavailable: '暂时无法获取用量',
       usageCaption: '当前最高占用 {h}%',
+      costUnavailable: '暂时无法获取费用',
+      costRequests: '{n} 次',
+      costRemaining: '剩余 {v}',
+      costSpend: '本周期费用',
+      costPool: '周期额度',
+      staleUpdated: '数据更新于 {time}',
+      staleUnavailable: '{label} 暂时无法刷新',
+      staleHint: '{label} · {time} 的数据',
       resetsSoon: '即将重置',
       days: '{n}天',
       hours: '{n}小时',
@@ -296,11 +332,14 @@ window.fetch = function (url) {
       resetsAt: '重置于',
       winRolling: '滚',
       winWeekly: '周',
-      winMonthly: '月'
+      winMonthly: '月',
+      winFiveHour: '五',
+      winPeriod: '本周期'
     },
     en: {
       title: 'Billing',
       ariaExpand: 'Expand billing',
+      capsuleHint: 'Drag to move',
       ariaRefresh: 'Refresh billing',
       ariaCollapse: 'Collapse billing',
       ariaLang: 'Switch language',
@@ -313,6 +352,14 @@ window.fetch = function (url) {
       tierSurplus: 'Balance sufficient',
       usageUnavailable: 'Usage unavailable',
       usageCaption: 'Highest usage {h}%',
+      costUnavailable: 'Cost unavailable',
+      costRequests: '{n} requests',
+      costRemaining: '{v} left',
+      costSpend: 'Period spend',
+      costPool: 'Period allowance',
+      staleUpdated: 'Updated {time}',
+      staleUnavailable: '{label} refresh failed',
+      staleHint: '{label} · data from {time}',
       resetsSoon: 'resets soon',
       days: '{n}d',
       hours: '{n}h',
@@ -320,39 +367,30 @@ window.fetch = function (url) {
       resetsAt: 'resets at',
       winRolling: 'Rolling',
       winWeekly: 'Weekly',
-      winMonthly: 'Monthly'
+      winMonthly: 'Monthly',
+      winFiveHour: '5h',
+      winPeriod: 'Period'
     }
   };
   function t(key) { return (I18N[LANG] && I18N[LANG][key]) || I18N.zh[key] || key; }
+  // NOTE: this lives inside a template literal upstream, so every backslash is
+  // doubled — including the one in \w. Without that the emitted regex is
+  // /\{(w+)\}/ and placeholders silently survive into the UI.
   function fill(template, vars) {
-    return template.replace(/\{(w+)\}/g, function (_, k) { return vars[k] !== undefined ? vars[k] : '{' + k + '}'; });
+    return template.replace(/\{(\w+)\}/g, function (_, k) { return vars[k] !== undefined ? vars[k] : '{' + k + '}'; });
   }
   // Window labels: explicit user labels win (even when null-valued the
   // shipped defaults are replaced per-language); null specs follow the
   // UI language's default labels.
   function windowLabels(spec) {
-    if (spec.windowLabels) {
-      return {
-        rolling: spec.windowLabels.rolling || t('winRolling'),
-        weekly: spec.windowLabels.weekly || t('winWeekly'),
-        monthly: spec.windowLabels.monthly || t('winMonthly')
-      };
-    }
-    return { rolling: t('winRolling'), weekly: t('winWeekly'), monthly: t('winMonthly') };
+    var w = spec.windowLabels;
+    return {
+      rolling: (w && w.rolling) || t('winRolling'),
+      weekly: (w && w.weekly) || t('winWeekly'),
+      monthly: (w && w.monthly) || t('winMonthly'),
+      fiveHour: (w && w.fiveHour) || t('winFiveHour')
+    };
   }
-  function setLang(next) {
-    if (next === LANG) return;
-    LANG = next;
-    try { localStorage.setItem(LANG_KEY, LANG); } catch (e) { /* ignore */ }
-    cardEl.querySelector('.dsh-quota-title').textContent = t('title');
-    capsuleEl.setAttribute('aria-label', t('ariaExpand'));
-    refreshBtn.setAttribute('aria-label', t('ariaRefresh'));
-    collapseBtn.setAttribute('aria-label', t('ariaCollapse'));
-    langBtn.setAttribute('aria-label', t('ariaLang'));
-    langBtn.textContent = LANG === 'zh' ? 'EN' : '中文';
-    refreshAll();
-  }
-
   function el(tag, cls, text) {
     var node = document.createElement(tag);
     if (cls) node.className = cls;
@@ -376,9 +414,67 @@ window.fetch = function (url) {
     return parts.length ? parts.join('') : t('resetsSoon');
   }
 
-  function setState(view, state) {
-    view.root.classList.remove('state-loading', 'state-ok', 'state-warn', 'state-error');
-    view.root.classList.add('state-' + state);
+  // ── Value formatting / numeric guards ──────────────────────────────────
+  // Money is formatted from the payload's ISO currency code, so a provider
+  // reporting USD is never drawn with a ¥ sign. The narrowSymbol display
+  // keeps the capsule compact (zh-CN USD → "$16.24" not "US$16.24").
+  function numeric(value) {
+    if (typeof value === 'number') return Number.isFinite(value) ? value : NaN;
+    if (typeof value !== 'string' || !/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(value.trim())) return NaN;
+    return Number(value.trim());
+  }
+  function fmtMoney(amount, currency) {
+    var n = numeric(amount);
+    if (!Number.isFinite(n)) return '—';
+    var code = typeof currency === 'string' && /^[A-Za-z]{3}$/.test(currency) ? currency.toUpperCase() : null;
+    if (!code) return n.toFixed(2);
+    try {
+      return new Intl.NumberFormat(LANG === 'zh' ? 'zh-CN' : 'en-US', {
+        style: 'currency', currency: code, currencyDisplay: 'narrowSymbol'
+      }).format(n);
+    } catch (e) {
+      return n.toFixed(2) + ' ' + code; // unknown ISO code → never throw in a render path
+    }
+  }
+  function fmtCount(value) {
+    var n = numeric(value);
+    return Number.isFinite(n) ? Math.round(n).toLocaleString('en-US') : '—';
+  }
+  function fmtCompact(value) {
+    var n = numeric(value);
+    if (!Number.isFinite(n) || n < 0) return '—';
+    if (n < 1e3) return String(Math.round(n));
+    if (n < 1e6) return (n / 1e3).toFixed(1) + 'K';
+    if (n < 1e9) return (n / 1e6).toFixed(1) + 'M';
+    return (n / 1e9).toFixed(2) + 'B';
+  }
+  // Numeric guard for provider payloads: a non-finite reading is INVALID data,
+  // never a silent 0. Finite readings are clamped for display only.
+  function clampPct(value) {
+    var n = numeric(value);
+    if (!Number.isFinite(n) || n < 0) return undefined;
+    return Math.min(Math.max(n, 0), 100);
+  }
+  function pctText(value) {
+    var n = Number(value);
+    if (!Number.isFinite(n)) return '—';
+    return (Math.round(n * 10) / 10) + '%';
+  }
+  // Wall-clock stamp for the stale tooltip ("更新于 15:32").
+  function fmtClock(ms) {
+    var d = new Date(ms);
+    if (!isFinite(d.getTime())) return '';
+    var pad = function (v) { return (v < 10 ? '0' : '') + v; };
+    return pad(d.getHours()) + ':' + pad(d.getMinutes());
+  }
+  // Command Code reports window resets as epoch milliseconds while the other
+  // providers send ISO strings; normalize both, and never throw on garbage.
+  function resetIso(value) {
+    if (typeof value === 'string') return value;
+    var n = Number(value);
+    if (!Number.isFinite(n) || n <= 0) return undefined;
+    var d = new Date(n);
+    return isFinite(d.getTime()) ? d.toISOString() : undefined;
   }
 
   // ── Provider renderer registry ─────────────────────────────────────────
@@ -392,22 +488,31 @@ window.fetch = function (url) {
       // compact text for one provider value
       compactValue: function (model) { return model ? model.value : '—'; },
       // derive { status, summary } from parsed data
-      deriveState: function (data, spec) {
+      deriveState: function (data, spec, helpers) {
         var info = data && data.balance_infos && data.balance_infos[0];
-        if (!data || data.error || !info) return { status: 'error', summary: '—', title: data && data.error ? String(data.error) : 'no balance info' };
-        var total = Number(info.total_balance);
-        if (!Number.isFinite(total)) return { status: 'error', summary: '—', title: 'non-numeric total_balance' };
+        if (!info) return { valid: false, status: 'error', title: 'no balance info' };
+        var total = numeric(info.total_balance);
+        if (!Number.isFinite(total)) return { valid: false, status: 'error', title: 'non-numeric total_balance' };
+        // Currency comes from the payload, not from the renderer: a CNY account
+        // renders ¥ and a USD account renders $, in both UI languages.
+        var currency = typeof info.currency === 'string' && info.currency ? info.currency : 'CNY';
+        var money = helpers.fmtMoney(total, currency);
         var tiers = spec.balanceTiers || { critical: 10, warn: 20, healthy: 50 };
         var status;
         if (total <= tiers.critical) status = 'error';
         else if (total <= tiers.warn) status = 'warn';
         else status = 'ok';
+        var lines = ['total: ' + money];
+        if (Number.isFinite(Number(info.granted_balance))) lines.push('granted: ' + helpers.fmtMoney(info.granted_balance, currency));
+        if (Number.isFinite(Number(info.topped_up_balance))) lines.push('topped-up: ' + helpers.fmtMoney(info.topped_up_balance, currency));
         return {
+          valid: true,
           status: status,
-          summary: '¥' + total.toFixed(2),
-          value: '¥' + total.toFixed(2),
+          summary: money,
+          value: money,
+          balanceDetails: [['充值余额', numeric(info.topped_up_balance)], ['赠送余额', numeric(info.granted_balance)]].map(function (entry) { return { label: entry[0], value: Number.isFinite(entry[1]) ? helpers.fmtMoney(entry[1], currency) : '—' }; }),
           tier: total <= tiers.critical ? 'recharge' : total <= tiers.warn ? 'tight' : total <= tiers.healthy ? 'ok' : 'surplus',
-          title: 'currency: ' + info.currency + '\ngranted: ¥' + info.granted_balance + '\ntopped-up: ¥' + info.topped_up_balance
+          title: lines.join('\n')
         };
       },
       // filled into the expanded-card balance view
@@ -418,12 +523,14 @@ window.fetch = function (url) {
       compactValue: function (model) { return model ? model.summary : '—'; },
       deriveState: function (data, spec, helpers) {
         var u = data && data.usage;
-        if (!data || data.error || !u || !u.rolling || !u.weekly || !u.monthly) {
-          return { status: 'error', summary: '—', title: data && data.error ? String(data.error) : 'usage unavailable' };
-        }
-        var rp = Number(u.rolling.percent) || 0;
-        var wp = Number(u.weekly.percent) || 0;
-        var mp = Number(u.monthly.percent) || 0;
+        if (!u || !u.rolling || !u.weekly || !u.monthly) return { valid: false, status: 'error', title: 'usage windows missing' };
+        // A malformed window is reported as invalid data rather than folded to
+        // 0% — silently reading a broken reading as "plenty left" is the one
+        // failure mode a quota widget must never have.
+        var rp = helpers.clampPct(u.rolling.percent);
+        var wp = helpers.clampPct(u.weekly.percent);
+        var mp = helpers.clampPct(u.monthly.percent);
+        if (rp === undefined || wp === undefined || mp === undefined) return { valid: false, status: 'error', title: 'non-numeric usage percent' };
         var high = Math.max(rp, wp, mp);
         var status;
         if (high >= spec.errorPercent) status = 'error';
@@ -431,23 +538,118 @@ window.fetch = function (url) {
         else status = 'ok';
         var labels = helpers.windowLabels(spec);
         return {
+          valid: true,
           status: status,
           summary: high + '%',
           usageText: labels.rolling + ' ' + rp + '%' + ' · ' + labels.weekly + ' ' + wp + '%' + ' · ' + labels.monthly + ' ' + mp + '%',
           high: high,
-          progressPct: Math.min(Math.max(high, 0), 100),
+          windows: [['rolling', '5小时'], ['weekly', '周'], ['monthly', '月']].map(function (entry) { var v = u[entry[0]]; return { label: entry[1], percent: helpers.clampPct(v.percent), reset: v.resetsAt }; }),
+          progressPct: high,
           caption: helpers.fill(helpers.t('usageCaption'), { h: high }),
           title: 'rolling: ' + rp + '%（' + helpers.t('resetsAt') + ' ' + helpers.fmtReset(u.rolling.resetsAt) + '）' + '\nweekly: ' + wp + '%（' + helpers.t('resetsAt') + ' ' + helpers.fmtReset(u.weekly.resetsAt) + '）' + '\nmonthly: ' + mp + '%（' + helpers.t('resetsAt') + ' ' + helpers.fmtReset(u.monthly.resetsAt) + '）'
+        };
+      },
+      detailModel: function (model) { return model; }
+    },
+    // Command Code: the row headlines the billing-period SPEND (usage.totalCost,
+    // in the same unit as the credits) and meters it against the period
+    // allowance reconstructed as spend + remaining credits.
+    'command-cost': {
+      kind: 'cost',
+      compactValue: function (model) { return model ? model.summary : '—'; },
+      deriveState: function (data, spec, helpers) {
+        var usage = data && data.usage;
+        if (!usage) return { valid: false, status: 'error', title: 'cost summary missing' };
+        var cost = numeric(usage.totalCost);
+        if (!Number.isFinite(cost) || cost < 0) return { valid: false, status: 'error', title: 'non-numeric usage.totalCost' };
+        var currency = spec.currency || 'USD';
+        var money = helpers.fmtMoney(cost, currency);
+        var credits = data.credits || {};
+        var remaining = 0;
+        var haveRemaining = false;
+        var pools = ['monthlyCredits', 'purchasedCredits', 'freeCredits'];
+        for (var p = 0; p < pools.length; p++) {
+          var pool = numeric(credits[pools[p]]);
+          if (Number.isFinite(pool) && pool >= 0) { remaining += pool; haveRemaining = true; }
+        }
+        // The allowance is never reported directly; spend + what is left of the
+        // period pool reconstructs it (GOAT refills $70/month: 16.24 + 53.77).
+        var allowance = haveRemaining ? cost + remaining : undefined;
+        var periodPct = allowance > 0 ? helpers.clampPct((cost / allowance) * 100) : undefined;
+        var limits = data.windowLimits || {};
+        var labels = helpers.windowLabels(spec);
+        var captionParts = [];
+        var titleLines = [helpers.t('costSpend') + ': ' + money];
+        var monthlyUsed = numeric(usage.totalMonthlyCredits);
+        var monthlyRemaining = numeric(credits.monthlyCredits);
+        var monthlyPct = usage.periodBasis === 'billing-period' && monthlyUsed >= 0 && monthlyRemaining >= 0 && monthlyUsed + monthlyRemaining > 0
+          ? helpers.clampPct(monthlyUsed / (monthlyUsed + monthlyRemaining) * 100) : undefined;
+        var high = monthlyPct;
+        var detailWindows = [];
+        if (periodPct !== undefined) captionParts.push(helpers.t('winPeriod') + ' ' + helpers.pctText(periodPct));
+        var windows = [['fiveHour', labels.fiveHour, limits.fiveHour], ['weekly', labels.weekly, limits.weekly]];
+        for (var w = 0; w < windows.length; w++) {
+          var name = windows[w][0];
+          var label = windows[w][1];
+          var source = windows[w][2] || {};
+          var used = numeric(source.used);
+          var cap = numeric(source.cap);
+          if (!Number.isFinite(used) || used < 0 || !Number.isFinite(cap) || cap <= 0) {
+            detailWindows.push({ label: name === 'fiveHour' ? '5小时' : '周', percent: undefined, reset: helpers.resetIso(source.resetAt) });
+            continue;
+          }
+          var usedPct = helpers.clampPct((used / cap) * 100);
+          detailWindows.push({ label: name === 'fiveHour' ? '5小时' : '周', percent: usedPct, reset: helpers.resetIso(source.resetAt) });
+          if (usedPct === undefined) continue;
+          captionParts.push(label + ' ' + helpers.pctText(usedPct));
+          if (high === undefined || usedPct > high) high = usedPct;
+          titleLines.push(name + ': ' + used + ' / ' + cap + '（' + helpers.t('resetsAt') + ' ' + helpers.fmtReset(helpers.resetIso(source.resetAt)) + '）');
+        }
+        var subParts = [];
+        detailWindows.push({ label: '月', percent: monthlyPct, reset: undefined });
+        if (Number.isFinite(Number(usage.totalCount))) subParts.push(helpers.fill(helpers.t('costRequests'), { n: helpers.fmtCount(usage.totalCount) }));
+        if (Number.isFinite(Number(usage.totalTokens))) subParts.push(helpers.fmtCompact(usage.totalTokens) + ' tokens');
+        if (haveRemaining) subParts.push(helpers.fill(helpers.t('costRemaining'), { v: helpers.fmtMoney(remaining, currency) }));
+        var status = high === undefined ? 'unknown' : 'ok';
+        if (high !== undefined) {
+          if (high >= spec.errorPercent) status = 'error';
+          else if (high >= spec.warnPercent) status = 'warn';
+        }
+        titleLines.push(subParts.join(' · '));
+        if (Number.isFinite(Number(usage.averageCost))) titleLines.push('avg: ' + helpers.fmtMoney(usage.averageCost, currency));
+        if (haveRemaining) titleLines.push(helpers.t('costPool') + ': ' + helpers.fmtMoney(remaining, currency) + ' / ' + helpers.fmtMoney(allowance, currency));
+        return {
+          valid: true,
+          status: status,
+          summary: high === undefined ? '—' : helpers.pctText(high),
+          value: money,
+          windows: detailWindows,
+          balanceDetails: [{ label: '本期费用', value: money }, { label: '剩余额度', value: haveRemaining ? helpers.fmtMoney(remaining, currency) : '—' }],
+          sub: subParts.join(' · '),
+          high: high,
+          progressPct: high === undefined ? 0 : high,
+          caption: captionParts.join(' · '),
+          title: titleLines.join('\n')
         };
       },
       detailModel: function (model) { return model; }
     }
   };
   function rendererFor(spec) { return PROVIDER_RENDERERS[spec.format] || null; }
+  /** Renderer kind, used to pick the row layout ("balance" when unknown). */
+  function kindOf(spec) {
+    var renderer = rendererFor(spec);
+    return renderer ? renderer.kind : 'balance';
+  }
 
-  // Collapsed capsule: each provider renders its own dot + value pair with
-  // independent status. Usage values are battery-colored (green/amber/red
-  // by usage level); balance values stay neutral unless warn/error.
+  function readingHint(spec, state) {
+    var meaning = kindOf(spec) === 'balance' ? (LANG === 'zh' ? '余额' : 'balance')
+      : (LANG === 'zh' ? '最高周期用量' : 'highest window usage');
+    return spec.label + ' ' + meaning + ': ' + (state ? state.summary : '…')
+      + (state && state.status === 'error' ? (LANG === 'zh' ? ' · 额度告警' : ' · quota alert') : '')
+      + (state && state.hint ? '\n' + state.hint : '');
+  }
+
   function renderCapsule() {
     for (var i = 0; i < ROWS.length; i++) {
       var spec = ROWS[i];
@@ -456,170 +658,274 @@ window.fetch = function (url) {
       var valueEl = CAPSULE_VALUES[spec.id];
       if (!dot || !valueEl) continue;
       var status = s ? s.status : 'loading';
-      var isUsage = spec.format === 'opencode-usage';
       dot.className = 'dsh-capsule-dot state-' + status;
-      valueEl.className = 'dsh-capsule-item' + (isUsage ? ' dsh-usage' : '') + ' state-' + status;
-      valueEl.textContent = s ? s.summary : '…';
+      valueEl.className = 'dsh-capsule-item state-' + status;
+      var model = LASTMODEL[spec.id] && LASTMODEL[spec.id].model;
+      var shortValue = s ? s.summary : '…';
+      if (kindOf(spec) === 'balance' && model) shortValue = model.value.replace(/([0-9]+)[.][0-9]+/, '$1');
+      if (kindOf(spec) !== 'balance' && model && model.high !== undefined) shortValue = Math.round(model.high) + '%';
+      valueEl.textContent = shortValue;
+      valueEl.parentElement.title = readingHint(spec, s);
+      var detailValue = DETAIL_VALUES[spec.id];
+      if (detailValue) {
+        detailValue.className = 'dsh-quota-detail-value state-' + status;
+        detailValue.replaceChildren();
+        if (model) {
+          if (kindOf(spec) === 'balance') detailValue.appendChild(el('span', 'quota-balance', model.value));
+          (model.windows || []).forEach(function (win) {
+            var row = el('span', 'quota-window');
+            var line = el('span', 'quota-line');
+            line.appendChild(el('span', '', win.label));
+            line.appendChild(el('span', '', win.percent === undefined ? '—' : pctText(win.percent) + ' 已用'));
+            row.appendChild(line);
+            var track = el('span', 'quota-track');
+            var fillEl = el('span', 'quota-fill');
+            if (win.percent !== undefined) fillEl.style.width = win.percent + '%';
+            track.appendChild(fillEl); row.appendChild(track);
+            row.appendChild(el('span', 'quota-reset', win.reset && Number.isFinite(new Date(win.reset).getTime()) ? fmtReset(win.reset) + '后重置' : (win.label === '月' && kindOf(spec) === 'cost' ? '本期月度额度' : '重置时间 —')));
+            detailValue.appendChild(row);
+          });
+          (kindOf(spec) === 'balance' ? [] : model.balanceDetails || []).forEach(function (entry) {
+            var line = el('span', 'quota-line quota-money');
+            line.appendChild(el('span', '', entry.label)); line.appendChild(el('span', '', entry.value));
+            detailValue.appendChild(line);
+          });
+        } else detailValue.appendChild(el('span', '', s ? '—' : '…'));
+        detailValue.parentElement.title = readingHint(spec, s);
+        detailValue.parentElement.dataset.state = status;
+      }
     }
+    updateLabel();
+    anchorPanel();
+  }
+
+  function updateLabel() {
+    capsuleEl.setAttribute('aria-label', (expanded ? t('ariaCollapse') : t('ariaExpand')) + ': '
+      + ROWS.map(function (spec) { return readingHint(spec, STATE[spec.id]); }).join('; '));
   }
 
   function setExpanded(open) {
-    capsuleEl.hidden = open;
-    cardEl.hidden = !open;
-    capsuleEl.setAttribute('aria-expanded', open ? 'true' : 'false');
+    expanded = Boolean(open);
+    compactEl.hidden = expanded;
+    detailEl.hidden = !expanded;
+      lockEl.hidden = !expanded;
+    if (refreshEl) refreshEl.hidden = !expanded;
+    panelEl.classList.toggle('is-expanded', expanded);
+    capsuleEl.setAttribute('aria-expanded', String(expanded));
+    updateLabel();
+    anchorPanel();
+    if (!expanded && document.activeElement === lockEl) capsuleEl.focus();
     if (open) refreshAll();
   }
 
-  function createProviderView(spec) {
-    var root = el('div', 'dsh-provider state-loading');
-    var main = el('div', 'dsh-provider-main');
-    var dot = el('span', 'dsh-status-dot');
-    var body = el('div', 'dsh-provider-body');
-    var head = el('div', 'dsh-provider-head');
-    var nameEl = el('span', 'dsh-provider-name', spec.label);
-    var value = null, sub = null, usage = null, track = null, progress = null, caption = null;
-
-    head.appendChild(nameEl);
-    if (spec.format === 'deepseek-balance') {
-      value = el('span', 'dsh-provider-value', '—');
-      head.appendChild(value);
-      sub = el('div', 'dsh-provider-sub', t('updating'));
-    } else {
-      usage = el('div', 'dsh-usage-values', t('updating'));
-      track = el('div', 'dsh-progress');
-      progress = el('div', 'dsh-progress-fill');
-      track.appendChild(progress);
-      caption = el('div', 'dsh-usage-caption', '');
+  function setLocked(next) {
+    locked = Boolean(next);
+    if (drag) onDragEnd();
+    try { localStorage.setItem('dsh.quota.locked', locked ? '1' : '0'); } catch (e) { /* ignore */ }
+    if (lockEl) {
+      lockEl.setAttribute('aria-pressed', String(locked));
+      lockEl.setAttribute('aria-label', LANG === 'zh' ? (locked ? '解锁位置' : '锁定位置') : (locked ? 'Unlock position' : 'Lock position'));
+      lockEl.title = lockEl.getAttribute('aria-label');
     }
-    body.appendChild(head);
-    if (sub) body.appendChild(sub);
-    if (usage) body.appendChild(usage);
-    if (progress) body.appendChild(track);
-    if (caption) body.appendChild(caption);
-
-    main.appendChild(dot);
-    main.appendChild(body);
-    root.appendChild(main);
-    return { root, dot, name: nameEl, value, sub, usage, progress, caption };
+    if (panelEl) panelEl.classList.toggle('is-locked', locked);
   }
 
-  // Render one provider's data (or error) into its view via its registered
-  // renderer in PROVIDER_RENDERERS. Falls back to a conservative error row when
-  // the format has no renderer.
-  function applyRender(view, spec, data, error) {
+  // Render one provider's data into its view via its registered renderer in
+  // PROVIDER_RENDERERS. The payload is the server's normalized envelope:
+  // ok+data on success, or ok=false with an error code/status/message.
+  //
+  // Failure policy: an unhealthy provider must not erase a reading we already
+  // have. The last good model stays on screen (grey, hollow dot) with the
+  // refresh failure + its timestamp in the tooltip; only a provider that has
+  // never produced a reading shows the red "unavailable" row.
+  function applyRender(spec, payload) {
     var renderer = rendererFor(spec);
     var helpers = {
       t: t,
       fill: fill,
       windowLabels: windowLabels,
-      fmtReset: fmtReset
+      fmtReset: fmtReset,
+      fmtMoney: fmtMoney,
+      fmtCount: fmtCount,
+      fmtCompact: fmtCompact,
+      clampPct: clampPct,
+      pctText: pctText,
+      resetIso: resetIso
     };
-    if (error) {
-      setState(view, 'error');
-      if (renderer && renderer.kind === 'usage') {
-        view.usage.textContent = t('usageUnavailable');
-        view.progress.style.width = '0%';
-        view.caption.textContent = '';
-      } else {
-        view.value.textContent = '—';
-        view.sub.textContent = t('balanceUnavailable');
-      }
-      view.root.title = String(error && error.message ? error.message : error);
-      STATE[spec.id] = { status: 'error', summary: '—' };
+    var data = payload && payload.ok ? payload.data : null;
+    var failure = payload && !payload.ok ? (payload.error || {}) : null;
+    var model = data && renderer ? renderer.deriveState(data, spec, helpers) : null;
+    if (model && model.valid === true) {
+      LASTMODEL[spec.id] = { model: model, at: Date.now() };
+      STATE[spec.id] = { status: model.status, summary: model.summary };
       renderCapsule();
       return;
     }
-    var model = renderer ? renderer.deriveState(data, spec, helpers) : { status: 'error', summary: '—' };
-    if (!model || model.status === 'error') {
-      // model.status === 'error' covers both "no info" and unusable numbers;
-      // pick per-kind copy so the message reads naturally.
-      setState(view, 'error');
-      if (renderer && renderer.kind === 'usage') {
-        view.usage.textContent = t('usageUnavailable');
-        view.progress.style.width = '0%';
-        view.caption.textContent = '';
-      } else {
-        view.value.textContent = '—';
-        view.sub.textContent = t('balanceUnavailable');
-      }
-      view.root.title = (model && model.title) || 'no info';
-      STATE[spec.id] = { status: 'error', summary: '—' };
+    var reason = failure
+      ? ((failure.code || 'error') + (failure.status ? ' ' + failure.status : '') + (failure.message ? ': ' + failure.message : ''))
+      : ((model && model.title) || 'unusable payload');
+    var previous = LASTMODEL[spec.id];
+    if (previous) {
+      var at = fmtClock(previous.at);
+      var updated = fill(t('staleUpdated'), { time: at });
+      STATE[spec.id] = {
+        status: 'stale',
+        summary: previous.model.summary,
+        hint: updated + '\n' + fill(t('staleUnavailable'), { label: spec.label }) + '\n' + reason
+      };
       renderCapsule();
       return;
     }
-    setState(view, model.status);
-    STATE[spec.id] = { status: model.status, summary: model.summary };
-    if (renderer && renderer.kind === 'usage') {
-      view.usage.textContent = model.usageText;
-      view.progress.style.width = model.progressPct + '%';
-      view.caption.textContent = model.caption;
-      view.root.title = model.title;
-    } else {
-      view.value.textContent = model.value;
-      var tierText = model.tier === 'recharge' ? t('tierRecharge')
-        : model.tier === 'tight' ? t('tierTight')
-          : model.tier === 'surplus' ? t('tierSurplus') : t('tierOk');
-      view.sub.textContent = tierText;
-      view.root.title = model.title;
-    }
+    STATE[spec.id] = { status: 'unknown', summary: '—', hint: reason };
     renderCapsule();
   }
 
+  // Position always refers to the 28px shell, not the animated button.
+  // Expanding grows upward from its bottom edge. v1 saved positions survive.
+  var POS_KEY = 'dsh.quota.pos';
+  var DRAG_SLOP = 4;
+  var EDGE_PAD = 8;
+  var pos = null;
+  var drag = null;
+  var didDrag = false;
+
+  function readPos() {
+    try {
+      var raw = localStorage.getItem(POS_KEY);
+      if (!raw) return null;
+      var saved = JSON.parse(raw);
+      if (saved && Number.isFinite(saved.x) && Number.isFinite(saved.y)) {
+        return { x: saved.x, y: saved.y };
+      }
+    } catch (e) { /* ignore */ }
+    return null;
+  }
+
+  function savePos(next) {
+    try {
+      if (next) localStorage.setItem(POS_KEY, JSON.stringify({ v: 1, x: Math.round(next.x), y: Math.round(next.y) }));
+      else localStorage.removeItem(POS_KEY);
+    } catch (e) { /* ignore */ }
+  }
+
+  function clampToViewport(candidate) {
+    var scale = panelEl.getBoundingClientRect().width / panelEl.offsetWidth || 1;
+    var minY = EDGE_PAD + Math.max(0, capsuleEl.offsetHeight - 28);
+    var maxX = Math.max(EDGE_PAD, window.innerWidth / scale - panelEl.offsetWidth - EDGE_PAD);
+    var maxY = Math.max(minY, window.innerHeight / scale - 28 - EDGE_PAD);
+    return {
+      x: Math.min(Math.max(EDGE_PAD, candidate.x), maxX),
+      y: Math.min(Math.max(minY, candidate.y), maxY)
+    };
+  }
+
+  function anchorPanel() {
+    if (!panelEl || !capsuleEl) return;
+    panelEl.style.setProperty('--quota-detail-height', capsuleEl.offsetHeight + 'px');
+    if (mountSlot && !mountSlot.isConnected) {
+      mountSlot = null;
+      document.body.appendChild(panelEl);
+    }
+    panelEl.classList.toggle('is-hosted', Boolean(mountSlot));
+    if (mountSlot) {
+      panelEl.style.left = '';
+      panelEl.style.top = '';
+      return;
+    }
+    var defaultPos = { x: 24, y: window.innerHeight - 92 };
+    var footer = document.querySelector('[aria-label="鲸息入口"]') || document.querySelector('[data-slot="settings.trigger"]');
+    if (footer) {
+      var footerRect = footer.getBoundingClientRect();
+      if (footerRect.width > 0 && footerRect.left < window.innerWidth / 2) defaultPos.y = footerRect.top - 40;
+    }
+    var clamped = clampToViewport(pos || defaultPos);
+    panelEl.style.left = Math.round(clamped.x) + 'px';
+    panelEl.style.top = Math.round(clamped.y) + 'px';
+  }
+
+  function resetPos() {
+    mountSlot = null;
+    document.body.appendChild(panelEl);
+    pos = null;
+    savePos(null);
+    anchorPanel();
+  }
+
+  function onDragStart(event) {
+    if (locked || drag || event.button !== 0 || !event.isPrimary) return;
+    didDrag = false;
+    var rect = panelEl.getBoundingClientRect();
+    drag = {
+      id: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: rect.left,
+      originY: rect.top,
+      moved: false
+    };
+    try { capsuleEl.setPointerCapture(event.pointerId); } catch (e) { /* ignore */ }
+  }
+
+  function onDragMove(event) {
+    if (!drag || event.pointerId !== drag.id) return;
+    var dx = event.clientX - drag.startX;
+    var dy = event.clientY - drag.startY;
+    if (!drag.moved && Math.abs(dx) < DRAG_SLOP && Math.abs(dy) < DRAG_SLOP) return;
+    if (!drag.moved) {
+      drag.moved = true;
+      if (mountSlot) {
+        mountSlot = null;
+        document.body.appendChild(panelEl);
+        panelEl.classList.remove('is-hosted');
+      }
+      panelEl.classList.add('is-dragging');
+    }
+    event.preventDefault();
+    pos = clampToViewport({ x: drag.originX + dx, y: drag.originY + dy });
+    anchorPanel();
+  }
+
+  function onDragEnd(event) {
+    if (!drag || (event && event.pointerId !== drag.id)) return;
+    var ended = drag;
+    drag = null;
+    try { capsuleEl.releasePointerCapture(ended.id); } catch (e) { /* ignore */ }
+    panelEl.classList.remove('is-dragging');
+    if (ended.moved) {
+      didDrag = true;
+      savePos(pos);
+      // Only swallow the click generated by this pointer release.
+      setTimeout(function () { didDrag = false; }, 0);
+    }
+  }
+
+  function installDrag() {
+    capsuleEl.addEventListener('pointerdown', onDragStart);
+    capsuleEl.addEventListener('pointermove', onDragMove);
+    capsuleEl.addEventListener('pointerup', onDragEnd);
+    capsuleEl.addEventListener('pointercancel', onDragEnd);
+    capsuleEl.addEventListener('lostpointercapture', onDragEnd);
+    // Right-click on the handle restores the default corner — the escape hatch
+    // for a widget dragged somewhere awkward (or off a resized screen).
+    capsuleEl.addEventListener('contextmenu', function (event) {
+      if (locked) return;
+      event.preventDefault();
+      resetPos();
+    });
+  }
+
   function injectStyles() {
-    var css = [
-      '#dsh-quota-panel{position:fixed;right:18px;bottom:18px;z-index:900;display:flex;flex-direction:column;align-items:flex-end;color:var(--dsw-alias-label-primary,#1b1b1c);font-family:var(--dsw-font-family,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif);font-size:13px;line-height:1.45}',
-      '#dsh-quota-panel [hidden]{display:none!important}',
-      '#dsh-quota-capsule{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 12px 0 14px;border:1px solid var(--dsw-alias-border-l2,rgba(0,0,0,.1));border-radius:18px;background:var(--dsw-alias-bg-layer-2,#fff);box-shadow:var(--dsw-shadow-lv2,0 4px 12px rgba(15,17,21,.02),0 2px 8px rgba(15,17,21,.04));cursor:pointer;font:inherit;transition:background-color 120ms ease}',
-      '#dsh-quota-capsule:hover{background:var(--dsw-alias-bg-overlay,#ebeef2)}',
-      '#dsh-quota-capsule .dsh-capsule-dot{flex:none;width:8px;height:8px;border-radius:50%;background:var(--dsw-static-neutral-bluish-400,#adb2b8)}',
-      '#dsh-quota-capsule .dsh-capsule-dot.state-ok{background:var(--dsw-static-green-500,#22c55e)}',
-      '#dsh-quota-capsule .dsh-capsule-dot.state-warn{background:var(--dsw-static-amber-500,#f59e0b)}',
-      '#dsh-quota-capsule .dsh-capsule-dot.state-error{background:var(--dsw-static-red-500,#ef4444)}',
-      '#dsh-quota-capsule .dsh-capsule-item{font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--dsw-alias-label-primary,#1b1b1c)}',
-      '#dsh-quota-capsule .dsh-capsule-item.state-loading{color:var(--dsw-alias-label-secondary,#61666b)}',
-      '#dsh-quota-capsule .dsh-capsule-item.state-warn{color:var(--dsw-static-amber-500,#f59e0b)}',
-      '#dsh-quota-capsule .dsh-capsule-item.state-error{color:var(--dsw-static-red-500,#ef4444)}',
-      '#dsh-quota-capsule .dsh-capsule-item.state-ok.dsh-usage{color:var(--dsw-static-green-500,#22c55e)}',
-      '#dsh-quota-capsule .dsh-capsule-chevron{color:var(--dsw-alias-label-tertiary,#818590);font-size:11px;line-height:1}',
-      '#dsh-quota-card{width:300px;max-width:calc(100vw - 36px);margin-top:8px;padding:14px 16px 15px;border:1px solid var(--dsw-alias-border-l2,rgba(0,0,0,.1));border-radius:16px;background:var(--dsw-alias-bg-layer-2,#fff);box-shadow:var(--dsw-shadow-lv3,0 8px 26px rgba(15,17,21,.1),0 2px 6px rgba(15,17,21,.06));box-sizing:border-box}',
-      '#dsh-quota-card .dsh-quota-header{display:flex;align-items:center;justify-content:space-between;min-height:24px;margin-bottom:13px}',
-      '#dsh-quota-card .dsh-quota-title{color:var(--dsw-alias-label-primary,#1b1b1c);font-size:14px;font-weight:600;line-height:20px}',
-      '#dsh-quota-card .dsh-quota-actions{display:flex;gap:4px;margin:-3px -4px -3px 0}',
-      '#dsh-quota-card .dsh-quota-icon{display:inline-grid;place-items:center;width:26px;height:26px;padding:0;border:0;border-radius:8px;color:var(--dsw-alias-label-secondary,#61666b);background:transparent;font-size:16px;line-height:1;cursor:pointer;transition:background-color 120ms ease,color 120ms ease}',
-      '#dsh-quota-card .dsh-quota-icon:hover{color:var(--dsw-alias-label-primary,#1b1b1c);background:var(--dsw-alias-interactive-bg-hover,rgba(0,0,0,.05))}',
-      '#dsh-quota-card .dsh-quota-icon:disabled{cursor:default;opacity:.55}',
-      '#dsh-quota-card .dsh-quota-icon.is-loading{animation:dsh-quota-spin .7s linear infinite}',
-      '@keyframes dsh-quota-spin{to{transform:rotate(360deg)}}',
-      '#dsh-quota-card .dsh-provider{width:100%}',
-      '#dsh-quota-card .dsh-provider-main{display:flex;align-items:flex-start;gap:10px}',
-      '#dsh-quota-card .dsh-status-dot{flex:none;width:8px;height:8px;margin-top:6px;border-radius:50%;background:var(--dsw-static-green-500,#22c55e)}',
-      '#dsh-quota-card .state-loading .dsh-status-dot{background:var(--dsw-static-neutral-bluish-400,#adb2b8)}',
-      '#dsh-quota-card .state-warn .dsh-status-dot{background:var(--dsw-static-amber-500,#f59e0b)}',
-      '#dsh-quota-card .state-error .dsh-status-dot{background:var(--dsw-static-red-500,#ef4444)}',
-      '#dsh-quota-card .dsh-provider-body{flex:1;min-width:0}',
-      '#dsh-quota-card .dsh-provider-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px}',
-      '#dsh-quota-card .dsh-provider-name{overflow:hidden;color:var(--dsw-alias-label-primary,#1b1b1c);font-size:13px;font-weight:500;text-overflow:ellipsis;white-space:nowrap}',
-      '#dsh-quota-card .dsh-provider-value{flex:none;color:var(--dsw-alias-label-primary,#1b1b1c);font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}',
-      '#dsh-quota-card .state-warn .dsh-provider-value{color:var(--dsw-static-amber-500,#f59e0b)}',
-      '#dsh-quota-card .state-error .dsh-provider-value{color:var(--dsw-static-red-500,#ef4444)}',
-      '#dsh-quota-card .dsh-provider-sub{margin-top:3px;color:var(--dsw-alias-label-secondary,#61666b);font-size:12px;line-height:18px}',
-      '#dsh-quota-card .dsh-quota-divider{height:1px;margin:14px 0;background:var(--dsw-alias-border-l1,rgba(0,0,0,.06))}',
-      '#dsh-quota-card .dsh-usage-values{margin-top:3px;color:var(--dsw-alias-label-secondary,#61666b);font-size:12px;line-height:18px;font-variant-numeric:tabular-nums}',
-      '#dsh-quota-card .dsh-progress{position:relative;width:100%;height:5px;margin-top:10px;overflow:hidden;border-radius:999px;background:var(--dsw-alias-bg-overlay,#ebeef2)}',
-      '#dsh-quota-card .dsh-progress-fill{height:100%;width:0;border-radius:inherit;background:var(--dsw-static-deepseek-500,#4176e6);transition:width 300ms ease,background-color 160ms ease}',
-      '#dsh-quota-card .state-warn .dsh-progress-fill{background:var(--dsw-static-amber-500,#f59e0b)}',
-      '#dsh-quota-card .state-error .dsh-progress-fill{background:var(--dsw-static-red-500,#ef4444)}',
-      '#dsh-quota-card .dsh-usage-caption{margin-top:8px;color:var(--dsw-alias-label-secondary,#61666b);font-size:12px;line-height:18px}',
-      '#dsh-quota-card .dsh-quota-lang{font-size:11px;font-weight:600;letter-spacing:.2px;padding:0 3px}'
-    ].join('\n');
     var style = el('style');
-    style.textContent = css;
+    style.id = 'dsh-quota-style';
+    style.textContent = "/* Both buttons share one visual shell; the lock is never nested in a button. */\n#dsh-quota-panel {\n  position: fixed;\n  z-index: 900;\n  width: 128px;\n  max-width: calc(100vw - 16px);\n  height: 28px;\n  color: var(--dsw-alias-label-primary, #1b1b1c);\n  font-family: var(--dsw-font-family, -apple-system, BlinkMacSystemFont, \"Segoe UI\", \"Microsoft YaHei\", sans-serif);\n  font-size: 12px;\n  line-height: 1.4;\n}\n#dsh-quota-panel, #dsh-quota-panel * { box-sizing: border-box; }\n#dsh-quota-panel [hidden] { display: none !important; }\n#dsh-quota-panel.is-hosted { position: relative; }\n#dsh-quota-panel.is-expanded { width: var(--dsh-quota-width, 168px); }\n#dsh-quota-capsule {\n  appearance: none;\n  display: flex;\n  position: absolute;\n  inset: auto 0 0;\n  width: 100%;\n  height: 34px;\n  margin: 0;\n  padding: 0 8px;\n  border: 1px solid var(--dsw-alias-border-l2, rgba(0,0,0,.1));\n  border-radius: 17px;\n  background: var(--dsw-alias-bg-layer-2, #fff);\n  color: inherit;\n  box-shadow: none;\n  font: inherit;\n  text-align: center;\n  cursor: grab;\n  user-select: none;\n  touch-action: none;\n  transition: height 180ms ease, border-radius 180ms ease;\n}\n#dsh-quota-panel.is-expanded #dsh-quota-capsule {\n  height: auto;\n  border-radius: 28px;\n  padding: 32px 14px 14px;\n}\n#dsh-quota-panel.is-expanded #dsh-quota-detail {\n  width: 100%;\n  grid-template-columns: 1fr;\n  height: auto;\n  gap: 10px;\n  margin-right: 0;\n}\n#dsh-quota-panel.is-locked #dsh-quota-capsule { cursor: pointer; }\n#dsh-quota-panel.is-dragging #dsh-quota-capsule { cursor: grabbing; transition: none; }\n#dsh-quota-panel :focus-visible { outline: 2px solid var(--dsw-static-deepseek-500, #4176e6); outline-offset: 3px; }\n#dsh-quota-compact-row, #dsh-quota-detail {\n  display: grid;\n  grid-template-columns: repeat(var(--quota-columns, 3), minmax(0, 1fr));\n  gap: 2px;\n  align-items: center;\n  width: 100%;\n  height: 100%;\n}\n#dsh-quota-panel .dsh-capsule-pair { display: flex; justify-content: center; align-items: center; gap: 2px; white-space: nowrap; }\n#dsh-quota-panel .dsh-capsule-dot { width: 5px; height: 5px; flex: none; border-radius: 50%; background: var(--dsw-static-neutral-bluish-400, #adb2b8); }\n#dsh-quota-panel .dsh-capsule-dot.state-ok { background: var(--dsw-static-green-500, #22c55e); }\n#dsh-quota-panel .dsh-capsule-dot.state-warn { background: var(--dsw-static-amber-500, #f59e0b); }\n#dsh-quota-panel .dsh-capsule-dot.state-error { background: var(--dsw-static-red-500, #ef4444); }\n#dsh-quota-panel .dsh-capsule-dot.state-stale { background: transparent; border: 1px solid var(--dsw-static-neutral-bluish-400, #adb2b8); }\n#dsh-quota-panel .dsh-capsule-item { font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }\n#dsh-quota-panel .dsh-quota-detail-column { display: flex; min-width: 0; flex-direction: column; align-items: stretch; gap: 4px; text-align: left; }\n#dsh-quota-panel .dsh-quota-detail-name { font-size: 11px; font-weight: 600; line-height: 15px; white-space: nowrap; }\n#dsh-quota-panel .dsh-quota-detail-value { display: grid; gap: 4px; font-size: 11px; line-height: 15px; font-variant-numeric: tabular-nums; }\n#dsh-quota-panel .quota-line { display: flex; justify-content: space-between; gap: 4px; white-space: nowrap; }\n#dsh-quota-panel .quota-balance { font-size: 17px; line-height: 22px; font-weight: 500; }\n#dsh-quota-panel .quota-window { display: grid; gap: 2px; }\n#dsh-quota-panel .quota-track { height: 3px; border-radius: 2px; overflow: hidden; background: var(--dsw-alias-border-l2, #e5e5e7); }\n#dsh-quota-panel .quota-fill { display: block; width: 0; height: 100%; background: var(--dsw-alias-label-secondary, #61666b); }\n#dsh-quota-panel .quota-reset { font-size: 10px; line-height: 12px; color: var(--dsw-alias-label-secondary, #61666b); }\n#dsh-quota-panel .quota-money { font-size: 10px; }\n#dsh-quota-panel .dsh-quota-detail-column.is-balance { flex-direction: row; align-items: center; justify-content: space-between; }\n#dsh-quota-panel .is-balance .quota-balance { font-size: 13px; line-height: 18px; }\n#dsh-quota-panel [data-state=\"warn\"] .dsh-quota-detail-name { color: var(--dsw-static-amber-500, #b77d10); }\n#dsh-quota-panel [data-state=\"error\"] .dsh-quota-detail-name { color: var(--dsw-static-red-500, #dc4545); }\n#dsh-quota-panel .state-stale, #dsh-quota-panel .state-unknown { color: var(--dsw-alias-label-secondary, #61666b); }\n#dsh-quota-lock {\n  appearance: none;\n  position: absolute;\n  right: 12px;\n  bottom: auto;\n  top: calc(28px - var(--quota-detail-height, 380px) + 5px);\n  display: grid;\n  place-items: center;\n  width: 24px;\n  height: 24px;\n  margin: 0;\n  padding: 3px;\n  border: 0;\n  border-radius: 50%;\n  background: transparent;\n  color: var(--dsw-alias-label-secondary, #61666b);\n  cursor: pointer;\n}\n#dsh-quota-lock:hover { color: var(--dsw-alias-label-primary, #1b1b1c); }\n#dsh-quota-lock[aria-pressed=\"true\"] { color: var(--dsw-alias-label-primary, #1b1b1c); }\n#dsh-quota-lock svg { width: 13px; height: 13px; pointer-events: none; }\n#dsh-quota-lock .lock-shackle { transform: translateX(3px); }\n#dsh-quota-lock[aria-pressed=\"true\"] .lock-shackle { transform: none; }\n#dsh-quota-refresh {\n  appearance: none;\n  position: absolute;\n  top: auto;\n  bottom: calc(var(--quota-detail-height, 380px) - 32px);\n  right: 38px;\n  display: grid;\n  place-items: center;\n  width: 24px;\n  height: 24px;\n  padding: 0;\n  border: 0;\n  border-radius: 50%;\n  background: transparent;\n  color: var(--dsw-alias-label-secondary, #61666b);\n  cursor: pointer;\n  font: 18px/1 sans-serif;\n}\n#dsh-quota-refresh:hover { color: var(--dsw-alias-label-primary, #1b1b1c); }\n#dsh-quota-refresh.is-refreshing { animation: dsh-quota-spin 700ms linear infinite; }\n@keyframes dsh-quota-spin { to { transform: rotate(360deg); } }\n@media (prefers-reduced-motion: reduce) { #dsh-quota-capsule { transition: none; } }\n";
     document.head.appendChild(style);
   }
 
   function createPanel() {
     var panel = el('div');
     panel.id = panelId;
+    panel.dataset.version = '0.7.0';
+    panel.style.setProperty('--quota-columns', String(Math.max(1, ROWS.length)));
 
     // Collapsed capsule: one dot + value pair per provider, no text labels.
     capsuleEl = el('button', 'dsh-quota-capsule');
@@ -627,77 +933,107 @@ window.fetch = function (url) {
     capsuleEl.type = 'button';
     capsuleEl.setAttribute('aria-label', t('ariaExpand'));
     capsuleEl.setAttribute('aria-expanded', 'false');
+    capsuleEl.setAttribute('aria-controls', cardId);
+    compactEl = el('span', 'dsh-quota-compact-row');
+    compactEl.id = 'dsh-quota-compact-row';
     for (var i = 0; i < ROWS.length; i++) {
       var spec = ROWS[i];
       var dot = el('span', 'dsh-capsule-dot state-loading');
       var valueEl = el('span', 'dsh-capsule-item state-loading', '…');
       CAPSULE_DOTS[spec.id] = dot;
       CAPSULE_VALUES[spec.id] = valueEl;
-      capsuleEl.appendChild(dot);
-      capsuleEl.appendChild(valueEl);
+      var pair = el('span', 'dsh-capsule-pair');
+      pair.appendChild(dot);
+      pair.appendChild(valueEl);
+      compactEl.appendChild(pair);
     }
-    capsuleEl.appendChild(el('span', 'dsh-capsule-chevron', '▾'));
-    capsuleEl.addEventListener('click', function () { setExpanded(true); });
+    capsuleEl.appendChild(compactEl);
+    capsuleEl.addEventListener('click', function () {
+      if (didDrag) { didDrag = false; return; }
+      setExpanded(!expanded);
+    });
+    installDrag();
     panel.appendChild(capsuleEl);
 
-    // Expanded card.
-    cardEl = el('div');
-    cardEl.id = cardId;
-    cardEl.hidden = true;
-    var header = el('div', 'dsh-quota-header');
-    header.appendChild(el('div', 'dsh-quota-title', t('title')));
-    var actions = el('div', 'dsh-quota-actions');
-    refreshBtn = el('button', 'dsh-quota-icon', '↻');
-    refreshBtn.type = 'button';
-    refreshBtn.setAttribute('aria-label', t('ariaRefresh'));
-    refreshBtn.addEventListener('click', function () { refreshAll(); });
-    collapseBtn = el('button', 'dsh-quota-icon', '▴');
-    collapseBtn.type = 'button';
-    collapseBtn.setAttribute('aria-label', t('ariaCollapse'));
-    collapseBtn.addEventListener('click', function () { setExpanded(false); });
-    // Language toggle: shows the target language so a click switches to it.
-    langBtn = el('button', 'dsh-quota-icon dsh-quota-lang', LANG === 'zh' ? 'EN' : '中文');
-    langBtn.type = 'button';
-    langBtn.setAttribute('aria-label', t('ariaLang'));
-    langBtn.addEventListener('click', function () { setLang(LANG === 'zh' ? 'en' : 'zh'); });
-    actions.appendChild(refreshBtn);
-    actions.appendChild(langBtn);
-    actions.appendChild(collapseBtn);
-    header.appendChild(actions);
-    cardEl.appendChild(header);
+    detailEl = el('span', 'dsh-quota-detail-grid');
+    detailEl.id = cardId;
+    detailEl.hidden = true;
     for (var i = 0; i < ROWS.length; i++) {
-      if (i > 0) cardEl.appendChild(el('div', 'dsh-quota-divider'));
-      var view = createProviderView(ROWS[i]);
-      VIEWS[ROWS[i].id] = view;
-      cardEl.appendChild(view.root);
+      var detailColumn = el('span', 'dsh-quota-detail-column');
+      if (kindOf(ROWS[i]) === 'balance') detailColumn.classList.add('is-balance');
+      var shortName = ROWS[i].label.replace(/^OpenCode Go$/i, 'OpenCode').replace(/^Command Code$/i, 'CommandCode');
+      detailColumn.appendChild(el('span', 'dsh-quota-detail-name', shortName));
+      var detailValue = el('span', 'dsh-quota-detail-value state-loading', '…');
+      DETAIL_VALUES[ROWS[i].id] = detailValue;
+      detailColumn.appendChild(detailValue);
+      detailEl.appendChild(detailColumn);
     }
-    panel.appendChild(cardEl);
+    capsuleEl.appendChild(detailEl);
+    lockEl = el('button', 'dsh-quota-lock');
+    lockEl.id = 'dsh-quota-lock';
+    lockEl.type = 'button';
+    lockEl.hidden = true;
+    var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 16 16');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('stroke-width', '1.3');
+    ['M5 7V5a3 3 0 0 1 6 0v2', 'M4 7h8v7H4z', 'M8 10v1.5'].forEach(function (path, index) {
+      var node = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      node.setAttribute('d', path);
+      if (index === 0) node.setAttribute('class', 'lock-shackle');
+      svg.appendChild(node);
+    });
+    lockEl.appendChild(svg);
+    lockEl.addEventListener('click', function () { setLocked(!locked); });
+    panel.appendChild(lockEl);
+    refreshEl = el('button', 'dsh-quota-refresh');
+    refreshEl.id = 'dsh-quota-refresh';
+    refreshEl.type = 'button';
+    refreshEl.hidden = true;
+    refreshEl.setAttribute('aria-label', LANG === 'zh' ? '刷新额度' : 'Refresh quota');
+    refreshEl.title = refreshEl.getAttribute('aria-label');
+    refreshEl.textContent = '↻';
+    refreshEl.addEventListener('click', function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      refreshEl.classList.add('is-refreshing');
+      refreshAll().finally(function () { refreshEl.classList.remove('is-refreshing'); });
+    });
+    panel.appendChild(refreshEl);
+    try { locked = localStorage.getItem('dsh.quota.locked') === '1'; } catch (e) { locked = false; }
+    setLocked(locked);
     return panel;
   }
 
   async function refreshProvider(spec) {
-    var view = VIEWS[spec.id];
-    if (!view) return;
+    // The route always answers with the normalized envelope; a transport
+    // failure or a non-JSON body is turned into the same shape here so the
+    // render path only ever sees ok+data or ok=false+error.
+    var payload;
     try {
-      var response = await fetch('/api/quota/' + encodeURIComponent(spec.id), { cache: 'no-store' });
-      var data = await response.json();
-      applyRender(view, spec, data, null);
+      var response = await fetch('/api/quota/' + encodeURIComponent(spec.id), { cache: 'no-store', signal: AbortSignal.timeout(35000) });
+      var text = await response.text();
+      try {
+        payload = JSON.parse(text);
+      } catch (e) {
+        payload = { ok: false, error: { code: 'invalid-body', status: response.status, message: 'non-JSON response' } };
+      }
     } catch (error) {
-      applyRender(view, spec, null, error);
+      payload = { ok: false, error: { code: 'network', message: String(error && error.message ? error.message : error) } };
     }
+    if (!payload || typeof payload !== 'object') payload = { ok: false, error: { code: 'invalid-body', message: 'empty response' } };
+    applyRender(spec, payload);
   }
 
   async function refreshAll() {
     if (refreshing) return;
     refreshing = true;
-    refreshBtn.disabled = true;
-    refreshBtn.classList.add('is-loading');
     try {
       await Promise.all(ROWS.map(function (spec) { return refreshProvider(spec); }));
     } finally {
       refreshing = false;
-      refreshBtn.disabled = false;
-      refreshBtn.classList.remove('is-loading');
     }
   }
 
@@ -705,13 +1041,37 @@ window.fetch = function (url) {
     if (document.getElementById(panelId)) return;
     injectStyles();
     panelEl = createPanel();
+    panelEl.classList.toggle('is-locked', locked);
+    pos = readPos(); // restore a dragged position before the first paint
     document.body.appendChild(panelEl);
+    anchorPanel();
+    // Fonts/paint land after the first layout: re-anchor once, then keep the
+    // widget inside the viewport on resize.
+    requestAnimationFrame(anchorPanel);
+    window.addEventListener('resize', function () {
+      anchorPanel();
+    });
+    new ResizeObserver(anchorPanel).observe(panelEl);
+    // DSH loads its sidebar asynchronously; keep the default clear of its footer.
+    var anchorFrame = 0;
+    new MutationObserver(function (records) {
+      if (pos || mountSlot || anchorFrame || !records.some(function (record) { return !panelEl.contains(record.target); })) return;
+      anchorFrame = requestAnimationFrame(function () { anchorFrame = 0; anchorPanel(); });
+    }).observe(document.body, { childList: true, subtree: true });
     refreshAll();
     setInterval(function () {
       if (!document.hidden) refreshAll();
     }, AUTO_MS);
     document.addEventListener('visibilitychange', function () {
       if (!document.hidden) refreshAll();
+    });
+    // Esc collapses the card from anywhere (the card is not a focus trap, so
+    // this is a convenience rather than an escape hatch) and hands focus back
+    // to the capsule that opened it.
+    document.addEventListener('keydown', function (event) {
+      if (event.key !== 'Escape' || !panelEl || !panelEl.classList.contains('is-expanded')) return;
+      setExpanded(false);
+      try { capsuleEl.focus(); } catch (e) { /* ignore */ }
     });
     registerQuotaModule();
   }
@@ -730,41 +1090,43 @@ window.fetch = function (url) {
         getSnapshot: function () {
           var rows = ROWS.map(function (spec) {
             var s = STATE[spec.id] || { status: 'loading', summary: '…' };
+            var last = LASTMODEL[spec.id];
             return {
               id: spec.id,
               label: spec.label,
               format: spec.format,
               status: s.status,
-              summary: s.summary
+              summary: s.summary,
+              // A stale row still reports the reading it could last confirm, so
+              // a consumer can tell "value is old" from "value is unknown".
+              observedAt: last ? last.at : null
             };
           });
-          var levels = rows.map(function (r) { return r.status; });
-          var level = levels.indexOf('error') >= 0 ? 'error' : (levels.indexOf('warn') >= 0 ? 'warn' : (rows.length ? 'ok' : 'unknown'));
-          return { level: level, providers: rows, updatedAt: Date.now() };
+          // Stale/loading rows are excluded from the aggregate level: one failed
+          // refresh is not an account problem, and when nothing has ever been
+          // read the honest answer is "unknown".
+          var levels = rows
+            .map(function (r) { return r.status; })
+            .filter(function (status) { return status !== 'stale' && status !== 'loading' && status !== 'unknown'; });
+          var level = levels.indexOf('error') >= 0 ? 'error' : (levels.indexOf('warn') >= 0 ? 'warn' : (levels.length ? 'ok' : 'unknown'));
+          var times = rows.map(function (r) { return r.observedAt || 0; });
+          return { level: level, providers: rows, updatedAt: Math.max.apply(Math, [0].concat(times)) || null };
         },
         actions: {
           refresh: function () { refreshAll(); }
         },
         mountCompact: function (container) {
-          // Render our own compact self into a host-provided container. The
-          // host (lifecycle) must NOT style our internals; we keep our capsule
-          // + card behaviour. Position the capsule inline, card floats above.
-          if (!container || !capsuleEl || container.contains(capsuleEl)) return;
-          capsuleEl.style.position = 'static';
-          capsuleEl.style.transform = 'none';
-          container.appendChild(capsuleEl);
-          if (cardEl && !cardEl.hidden) cardEl.hidden = true;
+          // An optional host may provide a slot. A user's saved placement wins.
+          if (!container || !container.isConnected || panelEl.contains(container) || pos) return;
+          mountSlot = container;
+          container.appendChild(panelEl);
+          setExpanded(false);
         },
         unmountCompact: function () {
-          // Take the capsule back out and restore it inside our own panel.
-          if (!capsuleEl || !cardEl || !panelEl) return;
-          if (capsuleEl.parentElement && capsuleEl.parentElement !== panelEl) {
-            capsuleEl.remove();
-          }
-          capsuleEl.style.position = '';
-          capsuleEl.style.transform = '';
-          panelEl.appendChild(capsuleEl);
-          if (cardEl && !cardEl.hidden) cardEl.hidden = true;
+          if (!panelEl) return;
+          mountSlot = null;
+          document.body.appendChild(panelEl);
+          setExpanded(false);
         },
         openDetail: function () {
           if (setExpanded) setExpanded(true);

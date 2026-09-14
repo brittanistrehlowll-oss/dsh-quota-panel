@@ -1,107 +1,138 @@
-// Syntax + content check for the emitted page script (v0.3 capsule + card).
+// Model/state and host contracts. Real DOM, layout and input tests live in
+// verify-capsule.mjs; source-string counts are not UI acceptance evidence.
+import assert from 'node:assert/strict';
 import vm from 'node:vm';
+import { apply } from '../lib/index.js';
+let checks = 0;
+const test = (name, run) => { run(); checks++; console.log(`PASS: ${name}`); };
+const provider = (extra = {}) => ({ id: 'x', label: 'Test', credential: 'TEST', endpoint: 'https://example.com/quota', ...extra });
+function mount(config) {
+  const routes = [], taps = [], disposers = [];
+  apply({
+    credentials: { resolve: async () => ({ value: 'synthetic-secret' }) },
+    webServer: { register: route => { routes.push(route); return () => {}; }, tapIndex: fn => { taps.push(fn); return () => {}; } },
+    effect: fn => { disposers.push(fn()); }
+  }, config);
+  return { routes, html: taps[0]('</body>'), disposers };
+}
+const rows = [provider(), provider({ id: 'u', format: 'opencode-usage' }), provider({ id: 'c', format: 'command-cost' })];
+const mounted = mount({ providers: rows });
+const script = mounted.html.slice('<script>'.length, mounted.html.lastIndexOf('</script>'));
+test('complete emitted script compiles', () => new vm.Script(script));
+test('three exact GET proxy routes', () => assert.deepEqual(mounted.routes.map(r => r.path), ['/api/quota/x', '/api/quota/u', '/api/quota/c']));
+test('credential never embedded', () => assert.ok(!script.includes('synthetic-secret')));
+test('closing script in label safely escaped', () => assert.ok(!mount({ providers: [provider({ label: '</script><script>alert(1)</script>' })] }).html.includes('</script><script>alert')));
 
-const plugin = await import(new URL('../lib/index.js', import.meta.url));
+for (const [name, config, pattern] of [
+  ['infinite refresh', { refreshMs: Infinity }, /refreshMs/],
+  ['NaN refresh', { refreshMs: NaN }, /refreshMs/],
+  ['refresh too fast', { refreshMs: 1000 }, /refreshMs/],
+  ['refresh too slow', { refreshMs: 90000000 }, /refreshMs/],
+  ['bad thresholds', { providers: [provider({ warnPercent: 95, errorPercent: 80 })] }, /warnPercent/],
+  ['threshold above 100', { providers: [provider({ errorPercent: 101 })] }, /warnPercent/],
+  ['string threshold', { providers: [provider({ warnPercent: '70' })] }, /finite/],
+  ['unordered balance tiers', { providers: [provider({ balanceTiers: { critical: 30, warn: 10 } })] }, /balanceTiers/],
+  ['remote HTTP', { providers: [provider({ endpoint: 'http://example.com' })] }, /https/],
+  ['unknown format', { providers: [provider({ format: 'unknown' })] }, /format/],
+  ['invalid currency', { providers: [provider({ currency: 'DOLLARS' })] }, /currency/],
+  ['duplicate id', { providers: [provider(), provider()] }, /duplicates/]
+]) test(`reject ${name}`, () => assert.throws(() => mount({ providers: rows, ...config }), pattern));
+test('loopback HTTP accepted', () => mount({ providers: [provider({ endpoint: 'http://127.0.0.1:8080/quota' })] }));
+test('empty provider list accepted', () => mount({ providers: [] }));
 
-const taps = [];
-const ctx = {
-	credentials: { resolve: async () => ({ value: 'sk-test', source: 'file' }) },
-	webServer: {
-		register: (route) => { console.log('route:', route.path); return () => {}; },
-		tapIndex: (fn) => { taps.push(fn); return () => {}; }
-	},
-	effect: (fn) => { fn(); return () => {}; }
-};
-plugin.apply(ctx, {
-	refreshMs: 60000,
-	providers: [
-		{ id: 'deepseek', label: 'DeepSeek', credential: 'DEEPSEEK_API_KEY', endpoint: 'https://api.deepseek.com/user/balance', format: 'deepseek-balance', balanceTiers: { critical: 10, warn: 20, healthy: 50 } },
-		{ id: 'opencode-go', label: 'OpenCode Go', credential: 'OPENCODE_GO_API_KEY', endpoint: 'https://opencode.ai/zen/go/v1/usage', format: 'opencode-usage', windowLabels: { rolling: '五', weekly: '周', monthly: '月' }, warnPercent: 70, errorPercent: 90 }
-	]
-});
+// Expose private model functions only in the test's VM copy. Production has
+// no test globals, no test endpoint and no credential access from the browser.
+const marker = "  if (document.readyState === 'loading') {";
+assert.ok(script.includes(marker));
+const instrumented = script.replace(marker, `window.audit={numeric,clampPct,renderers:PROVIDER_RENDERERS,applyRender,state:STATE,last:LASTMODEL};renderCapsule=function(){};${marker}`);
+const context = { window: {}, document: { readyState: 'loading', addEventListener() {} }, navigator: { language: 'zh-CN' }, localStorage: { getItem() { return null; } }, console };
+vm.runInNewContext(instrumented, context);
+const api = context.window.audit;
+const spec = { id: 'x', label: 'Test', format: 'deepseek-balance', warnPercent: 70, errorPercent: 90 };
+const balance = value => ({ ok: true, data: { balance_infos: [{ currency: 'CNY', total_balance: value }] } });
+for (const value of [null, undefined, '', ' ', false, true, [], {}, NaN, Infinity, 'nope']) {
+  test(`reject numeric ${String(value)}`, () => { assert.ok(Number.isNaN(api.numeric(value))); assert.equal(api.clampPct(value), undefined); });
+}
+test('numeric strings and zero preserved', () => { assert.equal(api.numeric('0'), 0); assert.equal(api.numeric(' 53.25 '), 53.25); assert.equal(api.clampPct(-1), undefined); });
+test('fresh critical balance is valid', () => { api.applyRender(spec, balance('5')); assert.equal(api.state.x.summary, '¥5.00'); assert.equal(api.state.x.status, 'error'); });
+test('healthy→critical uses newest balance', () => { api.applyRender(spec, balance('58')); api.applyRender(spec, balance('5')); assert.equal(api.state.x.summary, '¥5.00'); assert.equal(api.last.x.model.summary, '¥5.00'); });
+test('critical→outage retains critical reading as stale', () => { api.applyRender(spec, { ok: false, error: { code: 'network' } }); assert.equal(api.state.x.summary, '¥5.00'); assert.equal(api.state.x.status, 'stale'); });
+test('invalid balance never becomes zero', () => { api.applyRender(spec, balance(null)); assert.equal(api.state.x.summary, '¥5.00'); assert.equal(api.state.x.status, 'stale'); });
+test('first-load invalid balance is unknown', () => { api.applyRender({ ...spec, id: 'new' }, balance(null)); assert.equal(api.state.new.summary, '—'); assert.equal(api.state.new.status, 'unknown'); });
+test('recovery clears stale', () => { api.applyRender(spec, balance('80')); assert.equal(api.state.x.status, 'ok'); });
+const usage = n => ({ ok: true, data: { usage: { rolling: { percent: n }, weekly: { percent: 20 }, monthly: { percent: 30 } } } });
+const us = { ...spec, id: 'u', format: 'opencode-usage' };
+test('critical usage is displayed, not rejected', () => { api.applyRender(us, usage(95)); assert.equal(api.state.u.summary, '95%'); assert.equal(api.state.u.status, 'error'); });
+test('null usage does not become healthy zero', () => { api.applyRender(us, usage(null)); assert.equal(api.state.u.summary, '95%'); assert.equal(api.state.u.status, 'stale'); });
+const cs = { ...spec, id: 'c', format: 'command-cost' };
+test('monthly consumption is displayed as percentage and spend retained', () => { api.applyRender(cs, { ok: true, data: { usage: { totalCost: 95, totalMonthlyCredits: 95, periodBasis: 'billing-period' }, credits: { monthlyCredits: 5 } } }); assert.equal(api.state.c.summary, '95%'); assert.equal(api.last.c.model.value, '$95.00'); assert.equal(api.state.c.status, 'error'); });
+test('purchased credit does not dilute monthly percentage', () => { api.applyRender(cs, { ok: true, data: { usage: { totalCost: 120, totalMonthlyCredits: 95, periodBasis: 'billing-period' }, credits: { monthlyCredits: 5, purchasedCredits: 500 } } }); assert.equal(api.state.c.summary, '95%'); });
+test('missing monthly fields never infer percentage from total spend', () => { api.applyRender(cs, { ok: true, data: { usage: { totalCost: 95 }, credits: { monthlyCredits: 5 } } }); assert.equal(api.state.c.summary, '—'); });
+test('null cost rejected', () => { api.applyRender(cs, { ok: true, data: { usage: { totalCost: null } } }); assert.equal(api.state.c.status, 'stale'); });
 
-const html = taps[0]('</body>');
-// Extract the widget IIFE that follows the QUOTA_PAGE_SCRIPT_START marker
-// (the prepended integration runtime has its own IIFEs, so anchor on the
-// explicit marker rather than the first bare `(function () {`).
-const marker = '/*QUOTA_PAGE_SCRIPT_START*/';
-const markerAt = html.indexOf(marker);
-if (markerAt < 0) throw new Error('QUOTA_PAGE_SCRIPT_START marker not found — has the build changed?');
-const widgetStart = html.indexOf('(function () {', markerAt);
-const end = html.lastIndexOf('})();');
-const inner = html.slice(widgetStart, end + '})();'.length);
-if (widgetStart < 0 || end < 0) throw new Error('script markers not found');
-
+const oldFetch = globalThis.fetch;
 try {
-	new vm.Script(inner);
-	console.log('page script syntax OK');
-} catch (e) {
-	console.error('SYNTAX ERROR:', e.message);
-	process.exit(1);
+  const res = { writeHead(status, headers) { this.status = status; this.headers = headers; }, end(body) { this.body = body; } };
+  globalThis.fetch = async () => ({ ok: true, text: async () => '<html>synthetic-secret</html>' });
+  await mounted.routes[0].handler({ method: 'GET' }, res);
+  test('upstream error body never echoed', () => { assert.ok(!res.body.includes('synthetic-secret')); assert.equal(JSON.parse(res.body).error.code, 'invalid-body'); });
+  test('server marks quota response no-store', () => assert.equal(res.headers['cache-control'], 'no-store'));
+  globalThis.fetch = async () => { throw new Error('synthetic-secret'); };
+  await mounted.routes[0].handler({ method: 'GET' }, res);
+  test('thrown error text not echoed', () => assert.ok(!res.body.includes('synthetic-secret')));
+  await mounted.routes[0].handler({ method: 'POST' }, res);
+  test('non-GET rejected', () => assert.equal(res.status, 405));
+} finally { globalThis.fetch = oldFetch; }
+
+// ── Carrier neutrality: the same plugin on the connection Fetch registry ──
+// The Electron Desktop host has no `webServer`; the Web server mounts the very
+// same registry under its `/api` prefix. Both must yield identical routes and
+// the same structured index row.
+function mountConnectionCarrier(config) {
+  const routes = [], listeners = [];
+  const ctx = {
+    credentials: { resolve: async () => ({ value: 'synthetic-secret' }) },
+    connection: { fetch: { register: route => { routes.push(route); return () => {}; } } },
+    on: (event, fn) => { listeners.push([event, fn]); return () => {}; },
+    effect: fn => { fn(); return () => {}; },
+    inject: (_services, fn) => fn(ctx)
+  };
+  apply(ctx, config);
+  const table = [];
+  for (const [event, fn] of listeners) if (event === 'webserver/index-inject') fn(table);
+  return { routes, table };
+}
+{
+  const carrier = mountConnectionCarrier({ refreshMs: 60000, providers: [provider({ endpoint: 'http://127.0.0.1:1/quota' })] });
+  test('connection carrier registers exact GET routes with a buffered body', () => assert.deepEqual(
+    carrier.routes.map(r => [r.path, r.methods.join(','), r.requestBody]),
+    [['/api/quota/x', 'GET', 'buffered']]));
+  test('connection carrier contributes one structured index row', () => {
+    assert.equal(carrier.table.length, 1);
+    assert.equal(carrier.table[0].kind, 'script');
+    assert.equal(carrier.table[0].placement, 'body');
+    assert.ok(carrier.table[0].text.includes('DSH_PLUGIN_INTEGRATION_V1'));
+    // A row carries text, never markup: no literal tag may close the host's.
+    assert.ok(!carrier.table[0].text.includes('</script'));
+    assert.ok(!carrier.table[0].text.includes('synthetic-secret'));
+  });
+  test('connection carrier ships a compilable widget script', () => {
+    // The row text is the whole injected body (runtime + widget): compiling it
+    // as one script proves the row form needs no markup wrapper.
+    new vm.Script(carrier.table[0].text);
+    assert.ok(carrier.table[0].text.includes('/*QUOTA_PAGE_SCRIPT_START*/'));
+  });
+  const url = 'http://dsh.internal/api/quota/x';
+  const post = await carrier.routes[0].fetch(new Request(url, { method: 'POST' }));
+  const res = await carrier.routes[0].fetch(new Request(url));
+  const body = await res.json();
+  test('connection carrier rejects non-GET', () => assert.equal(post.status, 405));
+  test('connection carrier answers the shared envelope on a dead endpoint', () => {
+    assert.equal(res.status, 502);
+    assert.equal(body.ok, false);
+    assert.ok(['network', 'timeout'].includes(body.error.code));
+    assert.equal(res.headers.get('cache-control'), 'no-store');
+  });
 }
 
-const checks = {
-	'panel root id': inner.includes('dsh-quota-panel'),
-	'capsule id': inner.includes('dsh-quota-capsule'),
-	'card id': inner.includes('dsh-quota-card'),
-	'capsule default collapsed (card hidden)': inner.includes('cardEl.hidden = true'),
-	'setExpanded toggle': inner.includes('function setExpanded') && inner.includes('capsuleEl.hidden = open') && inner.includes('cardEl.hidden = !open'),
-	'aria-expanded on capsule': inner.includes("setAttribute('aria-expanded'"),
-	'expand on capsule click': inner.includes("setExpanded(true)"),
-	'collapse button': inner.includes('收起计费面板') && inner.includes("setExpanded(false)"),
-	'capsule has no text labels (额度/用量)': !inner.includes('dsh-capsule-label') && !inner.includes("'额度'") && !inner.includes("'用量 '"),
-	'capsule chevron': inner.includes('dsh-capsule-chevron'),
-	'per-provider dot map': inner.includes('CAPSULE_DOTS'),
-	'per-provider value map': inner.includes('CAPSULE_VALUES'),
-	'per-provider independent dot state': inner.includes("dot.className = 'dsh-capsule-dot state-' + status"),
-	'usage battery-green when ok': inner.includes('.dsh-capsule-item.state-ok.dsh-usage'),
-	'dot battery colors': inner.includes('.dsh-capsule-dot.state-ok') && inner.includes('.dsh-capsule-dot.state-warn') && inner.includes('.dsh-capsule-dot.state-error'),
-	'value battery colors': inner.includes('.dsh-capsule-item.state-warn') && inner.includes('.dsh-capsule-item.state-error'),
-	'hidden attribute enforced over display': inner.includes('#dsh-quota-panel [hidden]{display:none!important}'),
-	'card state dots kept': inner.includes('#dsh-quota-card .state-warn .dsh-status-dot') && inner.includes('#dsh-quota-card .state-error .dsh-status-dot'),
-	'STATE summary for deepseek': inner.includes("summary: '¥' + total.toFixed(2)"),
-	'STATE summary for usage': inner.includes("summary: high + '%'"),
-	'expand triggers refresh': inner.includes('if (open) refreshAll()'),
-	'i18n dict present': inner.includes('var I18N') && inner.includes("title: '计费面板'") && inner.includes("title: 'Billing'"),
-	'lang follows navigator.language': inner.includes('/^zh/i.test'),
-	'lang toggle button': inner.includes("LANG === 'zh' ? 'EN' : '中文'") && inner.includes("setLang(LANG === 'zh' ? 'en' : 'zh')"),
-	'header title 计费面板 (Billing)': inner.includes('计费面板'),
-	'refresh button + aria-label': inner.includes('dsh-quota-icon') && inner.includes('刷新计费面板'),
-	'provider loop over ROWS': inner.includes('for (var i = 0; i < ROWS.length; i++)'),
-	'progress bar': inner.includes('dsh-progress-fill'),
-	'caption 当前最高占用': inner.includes('当前最高占用'),
-	'caption English usageCaption': inner.includes('Highest usage'),
-	'4-tier balance text': inner.includes('建议充值') && inner.includes('余额紧张') && inner.includes('余额充足') && inner.includes('余额正常'),
-	'4-tier balance English text': inner.includes('Top up recommended') && inner.includes('Balance low') && inner.includes('Balance sufficient') && inner.includes('Balance OK'),
-	'error sub 暂时无法获取余额': inner.includes('暂时无法获取余额'),
-	'error sub Balance unavailable': inner.includes('Balance unavailable'),
-	'loading text 正在更新': inner.includes('正在更新'),
-	'loading text Updating': inner.includes('Updating'),
-	'English window labels default': inner.includes("winRolling: 'Rolling'") && inner.includes("winWeekly: 'Weekly'") && inner.includes("winMonthly: 'Monthly'"),
-	'refresh guard': inner.includes('if (refreshing) return'),
-	'hidden-page skip': inner.includes('document.hidden'),
-	'visibilitychange': inner.includes('visibilitychange'),
-	'z-index 900': inner.includes('z-index:900'),
-	'capsule height 32 / radius 18': inner.includes('height:32px') && inner.includes('border-radius:18px'),
-	'card width 300 / radius 16': inner.includes('width:300px') && inner.includes('border-radius:16px'),
-	'token border-l2': inner.includes('--dsw-alias-border-l2'),
-	'token shadow lv2 + lv3': inner.includes('--dsw-shadow-lv2') && inner.includes('--dsw-shadow-lv3'),
-	'token font-family': inner.includes('--dsw-font-family'),
-	'token bg-layer-2': inner.includes('--dsw-alias-bg-layer-2'),
-	'token deepseek-500 progress': inner.includes('--dsw-static-deepseek-500'),
-	'token green/amber/red states': inner.includes('--dsw-static-green-500') && inner.includes('--dsw-static-amber-500') && inner.includes('--dsw-static-red-500'),
-	'no neon green #7ee787': !inner.includes('#7ee787'),
-	'no dark HUD rgba(18,22,30': !inner.includes('rgba(18,22,30'),
-	'no monospace font': !inner.includes('monospace'),
-	'no backdrop-filter': !inner.includes('backdrop-filter'),
-	'no innerHTML data injection': !inner.includes('innerHTML'),
-	'tabular-nums': inner.includes('tabular-nums'),
-	'config balanceTiers embedded': inner.includes('balanceTiers'),
-	'window label 五 from config': inner.includes('五')
-};
-let ok = true;
-for (const [name, pass] of Object.entries(checks)) {
-	console.log(`${pass ? 'PASS' : 'FAIL'}: ${name}`);
-	if (!pass) ok = false;
-}
-if (!ok) process.exit(1);
+console.log(`${checks} model, configuration and security checks passed`);

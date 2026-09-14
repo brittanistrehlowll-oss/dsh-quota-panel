@@ -1,0 +1,3193 @@
+[
+  {
+    "name": "short capsule, readable one row, detail/lock hidden",
+    "pass": true,
+    "data": {
+      "x": 24,
+      "y": 702,
+      "w": 128,
+      "h": 34,
+      "bottom": 736,
+      "right": 152,
+      "small": "grid",
+      "detail": "none",
+      "lock": "none",
+      "refresh": "none",
+      "open": false,
+      "locked": false,
+      "values": [
+        "¥58",
+        "86%",
+        "23%"
+      ],
+      "snapshot": {
+        "level": "warn",
+        "providers": [
+          {
+            "id": "deepseek",
+            "label": "DeepSeek",
+            "format": "deepseek-balance",
+            "status": "ok",
+            "summary": "¥58.36",
+            "observedAt": 1789372049898
+          },
+          {
+            "id": "opencode-go",
+            "label": "OpenCode Go",
+            "format": "opencode-usage",
+            "status": "warn",
+            "summary": "86%",
+            "observedAt": 1789372049900
+          },
+          {
+            "id": "command",
+            "label": "Command Code",
+            "format": "command-cost",
+            "status": "ok",
+            "summary": "23.2%",
+            "observedAt": 1789372049902
+          }
+        ],
+        "updatedAt": 1789372049902
+      }
+    }
+  },
+  {
+    "name": "small text contained, no overlapping values",
+    "pass": true,
+    "data": {
+      "capsule": {
+        "x": 24,
+        "y": 702,
+        "width": 128,
+        "height": 34,
+        "top": 702,
+        "right": 152,
+        "bottom": 736,
+        "left": 24
+      },
+      "lock": {
+        "x": 0,
+        "y": 0,
+        "width": 0,
+        "height": 0,
+        "top": 0,
+        "right": 0,
+        "bottom": 0,
+        "left": 0
+      },
+      "boxes": [
+        {
+          "x": 45.265625,
+          "y": 711.296875,
+          "right": 63.0625,
+          "bottom": 726.296875,
+          "text": "¥58"
+        },
+        {
+          "x": 81.046875,
+          "y": 711.296875,
+          "right": 101.921875,
+          "bottom": 726.296875,
+          "text": "86%"
+        },
+        {
+          "x": 118.375,
+          "y": 711.296875,
+          "right": 139.25,
+          "bottom": 726.296875,
+          "text": "23%"
+        }
+      ],
+      "ok": true
+    }
+  },
+  {
+    "name": "narrow expanded details with refresh/lock controls",
+    "pass": true,
+    "data": {
+      "x": 24,
+      "y": 354,
+      "w": 168,
+      "h": 382,
+      "bottom": 736,
+      "right": 192,
+      "small": "none",
+      "detail": "grid",
+      "lock": "grid",
+      "refresh": "grid",
+      "open": true,
+      "locked": false,
+      "values": [
+        "¥58",
+        "86%",
+        "23%"
+      ],
+      "snapshot": {
+        "level": "warn",
+        "providers": [
+          {
+            "id": "deepseek",
+            "label": "DeepSeek",
+            "format": "deepseek-balance",
+            "status": "ok",
+            "summary": "¥58.36",
+            "observedAt": 1789372050159
+          },
+          {
+            "id": "opencode-go",
+            "label": "OpenCode Go",
+            "format": "opencode-usage",
+            "status": "warn",
+            "summary": "86%",
+            "observedAt": 1789372050161
+          },
+          {
+            "id": "command",
+            "label": "Command Code",
+            "format": "command-cost",
+            "status": "ok",
+            "summary": "23.2%",
+            "observedAt": 1789372050163
+          }
+        ],
+        "updatedAt": 1789372050163
+      }
+    }
+  },
+  {
+    "name": "same left/bottom anchor",
+    "pass": true
+  },
+  {
+    "name": "provider details and lock do not overlap",
+    "pass": true,
+    "data": {
+      "capsule": {
+        "x": 24,
+        "y": 354,
+        "width": 168,
+        "height": 382,
+        "top": 354,
+        "right": 192,
+        "bottom": 736,
+        "left": 24
+      },
+      "lock": {
+        "x": 156,
+        "y": 359,
+        "width": 24,
+        "height": 24,
+        "top": 359,
+        "right": 180,
+        "bottom": 383,
+        "left": 156
+      },
+      "boxes": [
+        {
+          "x": 39,
+          "y": 388.5,
+          "right": 88.65625,
+          "bottom": 403.5,
+          "text": "DeepSeek"
+        },
+        {
+          "x": 137.765625,
+          "y": 387,
+          "right": 177,
+          "bottom": 404,
+          "text": "¥58.36"
+        },
+        {
+          "x": 39,
+          "y": 415,
+          "right": 92.078125,
+          "bottom": 430,
+          "text": "OpenCode"
+        },
+        {
+          "x": 39,
+          "y": 434,
+          "right": 66.9375,
+          "bottom": 449,
+          "text": "5小时"
+        },
+        {
+          "x": 131.125,
+          "y": 434,
+          "right": 177,
+          "bottom": 449,
+          "text": "10% 已用"
+        },
+        {
+          "x": 39,
+          "y": 455,
+          "right": 94.390625,
+          "bottom": 469,
+          "text": "4小时后重置"
+        },
+        {
+          "x": 39,
+          "y": 472,
+          "right": 50,
+          "bottom": 487,
+          "text": "周"
+        },
+        {
+          "x": 131.125,
+          "y": 472,
+          "right": 177,
+          "bottom": 487,
+          "text": "45% 已用"
+        },
+        {
+          "x": 39,
+          "y": 493,
+          "right": 84.390625,
+          "bottom": 507,
+          "text": "2天后重置"
+        },
+        {
+          "x": 39,
+          "y": 510,
+          "right": 50,
+          "bottom": 525,
+          "text": "月"
+        },
+        {
+          "x": 131.125,
+          "y": 510,
+          "right": 177,
+          "bottom": 525,
+          "text": "86% 已用"
+        },
+        {
+          "x": 39,
+          "y": 531,
+          "right": 89.78125,
+          "bottom": 545,
+          "text": "27天后重置"
+        },
+        {
+          "x": 39,
+          "y": 554,
+          "right": 116.5625,
+          "bottom": 569,
+          "text": "CommandCode"
+        },
+        {
+          "x": 39,
+          "y": 573,
+          "right": 66.9375,
+          "bottom": 588,
+          "text": "5小时"
+        },
+        {
+          "x": 128.734375,
+          "y": 573,
+          "right": 177,
+          "bottom": 588,
+          "text": "0.9% 已用"
+        },
+        {
+          "x": 39,
+          "y": 594,
+          "right": 94.390625,
+          "bottom": 608,
+          "text": "3小时后重置"
+        },
+        {
+          "x": 39,
+          "y": 611,
+          "right": 50,
+          "bottom": 626,
+          "text": "周"
+        },
+        {
+          "x": 128.734375,
+          "y": 611,
+          "right": 177,
+          "bottom": 626,
+          "text": "0.4% 已用"
+        },
+        {
+          "x": 39,
+          "y": 632,
+          "right": 84.390625,
+          "bottom": 646,
+          "text": "5天后重置"
+        },
+        {
+          "x": 39,
+          "y": 649,
+          "right": 50,
+          "bottom": 664,
+          "text": "月"
+        },
+        {
+          "x": 122.796875,
+          "y": 649,
+          "right": 177,
+          "bottom": 664,
+          "text": "23.2% 已用"
+        },
+        {
+          "x": 39,
+          "y": 670,
+          "right": 99,
+          "bottom": 684,
+          "text": "本期月度额度"
+        },
+        {
+          "x": 39,
+          "y": 687,
+          "right": 79,
+          "bottom": 701,
+          "text": "本期费用"
+        },
+        {
+          "x": 147.875,
+          "y": 687,
+          "right": 177,
+          "bottom": 701,
+          "text": "$16.24"
+        },
+        {
+          "x": 39,
+          "y": 706,
+          "right": 79,
+          "bottom": 720,
+          "text": "剩余额度"
+        },
+        {
+          "x": 147.875,
+          "y": 706,
+          "right": 177,
+          "bottom": 720,
+          "text": "$53.77"
+        }
+      ],
+      "ok": true
+    }
+  },
+  {
+    "name": "OpenCode and CommandCode display individual usage windows",
+    "pass": true
+  },
+  {
+    "name": "manual refresh control preserves expanded state",
+    "pass": true
+  },
+  {
+    "name": "separate native refresh/lock buttons, no nested controls",
+    "pass": true
+  },
+  {
+    "name": "repeat click returns to same one-line capsule",
+    "pass": true
+  },
+  {
+    "name": "unlocked actual pointer drag moves in both axes without opening",
+    "pass": true,
+    "data": {
+      "x": 184,
+      "y": 602,
+      "w": 128,
+      "h": 34,
+      "bottom": 636,
+      "right": 312,
+      "small": "grid",
+      "detail": "none",
+      "lock": "none",
+      "refresh": "none",
+      "open": false,
+      "locked": false,
+      "values": [
+        "¥58",
+        "86%",
+        "23%"
+      ],
+      "snapshot": {
+        "level": "warn",
+        "providers": [
+          {
+            "id": "deepseek",
+            "label": "DeepSeek",
+            "format": "deepseek-balance",
+            "status": "ok",
+            "summary": "¥58.36",
+            "observedAt": 1789372052083
+          },
+          {
+            "id": "opencode-go",
+            "label": "OpenCode Go",
+            "format": "opencode-usage",
+            "status": "warn",
+            "summary": "86%",
+            "observedAt": 1789372052085
+          },
+          {
+            "id": "command",
+            "label": "Command Code",
+            "format": "command-cost",
+            "status": "ok",
+            "summary": "23.2%",
+            "observedAt": 1789372052087
+          }
+        ],
+        "updatedAt": 1789372052087
+      }
+    }
+  },
+  {
+    "name": "actual lock click keeps detail open",
+    "pass": true
+  },
+  {
+    "name": "locked pointer drag changes neither coordinate nor open state",
+    "pass": true,
+    "data": {
+      "x": 184,
+      "y": 254,
+      "w": 168,
+      "h": 382,
+      "bottom": 636,
+      "right": 352,
+      "small": "none",
+      "detail": "grid",
+      "lock": "grid",
+      "refresh": "grid",
+      "open": true,
+      "locked": true,
+      "values": [
+        "¥58",
+        "86%",
+        "23%"
+      ],
+      "snapshot": {
+        "level": "warn",
+        "providers": [
+          {
+            "id": "deepseek",
+            "label": "DeepSeek",
+            "format": "deepseek-balance",
+            "status": "ok",
+            "summary": "¥58.36",
+            "observedAt": 1789372053285
+          },
+          {
+            "id": "opencode-go",
+            "label": "OpenCode Go",
+            "format": "opencode-usage",
+            "status": "warn",
+            "summary": "86%",
+            "observedAt": 1789372053286
+          },
+          {
+            "id": "command",
+            "label": "Command Code",
+            "format": "command-cost",
+            "status": "ok",
+            "summary": "23.2%",
+            "observedAt": 1789372053288
+          }
+        ],
+        "updatedAt": 1789372053288
+      }
+    }
+  },
+  {
+    "name": "reload restores lock/position",
+    "pass": true
+  },
+  {
+    "name": "unlock restores actual drag in expanded state",
+    "pass": true
+  },
+  {
+    "name": "Escape collapses and returns focus",
+    "pass": true
+  },
+  {
+    "name": "Enter opens, Tab reaches lock",
+    "pass": true,
+    "data": {
+      "state": {
+        "x": 284,
+        "y": 204,
+        "w": 168,
+        "h": 382,
+        "bottom": 586,
+        "right": 452,
+        "small": "none",
+        "detail": "grid",
+        "lock": "grid",
+        "refresh": "grid",
+        "open": true,
+        "locked": false,
+        "values": [
+          "¥58",
+          "86%",
+          "23%"
+        ],
+        "snapshot": {
+          "level": "warn",
+          "providers": [
+            {
+              "id": "deepseek",
+              "label": "DeepSeek",
+              "format": "deepseek-balance",
+              "status": "ok",
+              "summary": "¥58.36",
+              "observedAt": 1789372056127
+            },
+            {
+              "id": "opencode-go",
+              "label": "OpenCode Go",
+              "format": "opencode-usage",
+              "status": "warn",
+              "summary": "86%",
+              "observedAt": 1789372056131
+            },
+            {
+              "id": "command",
+              "label": "Command Code",
+              "format": "command-cost",
+              "status": "ok",
+              "summary": "23.2%",
+              "observedAt": 1789372056134
+            }
+          ],
+          "updatedAt": 1789372056134
+        }
+      },
+      "active": "<button class=\"dsh-quota-lock\" id=\"dsh-quota-lock\" type=\"button\" aria-pressed=\"false\" aria-label=\"锁定位置\" title=\"锁定位置\"><svg viewBox=\"0 0 16 16\" aria-hidden=\"true\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.3\"><path d=\"M5 7V5a3 3 0 0 1 6 0v2\" cla"
+    }
+  },
+  {
+    "name": "Space locks without collapse",
+    "pass": true
+  },
+  {
+    "name": "Space on main button expands",
+    "pass": true
+  },
+  {
+    "name": "healthy→critical shows new ¥5, not stale ¥58",
+    "pass": true
+  },
+  {
+    "name": "failed refresh retains latest ¥5 as stale",
+    "pass": true
+  },
+  {
+    "name": "recovery returns fresh data",
+    "pass": true
+  },
+  {
+    "name": "first-load failure shows unknown —, never 0",
+    "pass": true
+  },
+  {
+    "name": "light text at 80% CSS zoom",
+    "pass": true,
+    "data": {
+      "capsule": {
+        "x": 227.1875,
+        "y": 163.0625,
+        "width": 134.390625,
+        "height": 305.71875,
+        "top": 163.0625,
+        "right": 361.578125,
+        "bottom": 468.78125,
+        "left": 227.1875
+      },
+      "lock": {
+        "x": 332.796875,
+        "y": 167.203125,
+        "width": 19.1875,
+        "height": 19.1875,
+        "top": 167.203125,
+        "right": 351.984375,
+        "bottom": 186.390625,
+        "left": 332.796875
+      },
+      "boxes": [
+        {
+          "x": 239.375,
+          "y": 190.859375,
+          "right": 279.109375,
+          "bottom": 201.859375,
+          "text": "DeepSeek"
+        },
+        {
+          "x": 318,
+          "y": 189.65625,
+          "right": 349.390625,
+          "bottom": 203.65625,
+          "text": "¥58.36"
+        },
+        {
+          "x": 239.375,
+          "y": 212.0625,
+          "right": 281.84375,
+          "bottom": 223.0625,
+          "text": "OpenCode"
+        },
+        {
+          "x": 239.375,
+          "y": 227.25,
+          "right": 261.71875,
+          "bottom": 238.25,
+          "text": "5小时"
+        },
+        {
+          "x": 312.6875,
+          "y": 227.25,
+          "right": 349.390625,
+          "bottom": 238.25,
+          "text": "10% 已用"
+        },
+        {
+          "x": 239.375,
+          "y": 243.828125,
+          "right": 283.6875,
+          "bottom": 254.828125,
+          "text": "4小时后重置"
+        },
+        {
+          "x": 239.375,
+          "y": 257.609375,
+          "right": 248.1875,
+          "bottom": 268.609375,
+          "text": "周"
+        },
+        {
+          "x": 312.6875,
+          "y": 257.609375,
+          "right": 349.390625,
+          "bottom": 268.609375,
+          "text": "45% 已用"
+        },
+        {
+          "x": 239.375,
+          "y": 274.1875,
+          "right": 275.6875,
+          "bottom": 285.1875,
+          "text": "2天后重置"
+        },
+        {
+          "x": 239.375,
+          "y": 287.96875,
+          "right": 248.1875,
+          "bottom": 298.96875,
+          "text": "月"
+        },
+        {
+          "x": 312.6875,
+          "y": 287.96875,
+          "right": 349.390625,
+          "bottom": 298.96875,
+          "text": "86% 已用"
+        },
+        {
+          "x": 239.375,
+          "y": 304.546875,
+          "right": 280,
+          "bottom": 315.546875,
+          "text": "27天后重置"
+        },
+        {
+          "x": 239.375,
+          "y": 323.140625,
+          "right": 301.421875,
+          "bottom": 334.140625,
+          "text": "CommandCode"
+        },
+        {
+          "x": 239.375,
+          "y": 338.328125,
+          "right": 261.71875,
+          "bottom": 349.328125,
+          "text": "5小时"
+        },
+        {
+          "x": 310.78125,
+          "y": 338.328125,
+          "right": 349.390625,
+          "bottom": 349.328125,
+          "text": "0.9% 已用"
+        },
+        {
+          "x": 239.375,
+          "y": 354.90625,
+          "right": 283.6875,
+          "bottom": 365.90625,
+          "text": "3小时后重置"
+        },
+        {
+          "x": 239.375,
+          "y": 368.6875,
+          "right": 248.1875,
+          "bottom": 379.6875,
+          "text": "周"
+        },
+        {
+          "x": 310.78125,
+          "y": 368.6875,
+          "right": 349.390625,
+          "bottom": 379.6875,
+          "text": "0.4% 已用"
+        },
+        {
+          "x": 239.375,
+          "y": 385.265625,
+          "right": 275.6875,
+          "bottom": 396.265625,
+          "text": "5天后重置"
+        },
+        {
+          "x": 239.375,
+          "y": 399.046875,
+          "right": 248.1875,
+          "bottom": 410.046875,
+          "text": "月"
+        },
+        {
+          "x": 306.03125,
+          "y": 399.046875,
+          "right": 349.390625,
+          "bottom": 410.046875,
+          "text": "23.2% 已用"
+        },
+        {
+          "x": 239.375,
+          "y": 415.625,
+          "right": 287.375,
+          "bottom": 426.625,
+          "text": "本期月度额度"
+        },
+        {
+          "x": 239.375,
+          "y": 429.40625,
+          "right": 271.375,
+          "bottom": 440.40625,
+          "text": "本期费用"
+        },
+        {
+          "x": 326.09375,
+          "y": 429.40625,
+          "right": 349.390625,
+          "bottom": 440.40625,
+          "text": "$16.24"
+        },
+        {
+          "x": 239.375,
+          "y": 444.59375,
+          "right": 271.375,
+          "bottom": 455.59375,
+          "text": "剩余额度"
+        },
+        {
+          "x": 326.09375,
+          "y": 444.59375,
+          "right": 349.390625,
+          "bottom": 455.59375,
+          "text": "$53.77"
+        }
+      ],
+      "ok": true
+    }
+  },
+  {
+    "name": "light text at 100% CSS zoom",
+    "pass": true,
+    "data": {
+      "capsule": {
+        "x": 284,
+        "y": 204,
+        "width": 168,
+        "height": 382,
+        "top": 204,
+        "right": 452,
+        "bottom": 586,
+        "left": 284
+      },
+      "lock": {
+        "x": 416,
+        "y": 209,
+        "width": 24,
+        "height": 24,
+        "top": 209,
+        "right": 440,
+        "bottom": 233,
+        "left": 416
+      },
+      "boxes": [
+        {
+          "x": 299,
+          "y": 238.5,
+          "right": 348.65625,
+          "bottom": 253.5,
+          "text": "DeepSeek"
+        },
+        {
+          "x": 397.765625,
+          "y": 237,
+          "right": 437,
+          "bottom": 254,
+          "text": "¥58.36"
+        },
+        {
+          "x": 299,
+          "y": 265,
+          "right": 352.078125,
+          "bottom": 280,
+          "text": "OpenCode"
+        },
+        {
+          "x": 299,
+          "y": 284,
+          "right": 326.9375,
+          "bottom": 299,
+          "text": "5小时"
+        },
+        {
+          "x": 391.125,
+          "y": 284,
+          "right": 437,
+          "bottom": 299,
+          "text": "10% 已用"
+        },
+        {
+          "x": 299,
+          "y": 305,
+          "right": 354.390625,
+          "bottom": 319,
+          "text": "4小时后重置"
+        },
+        {
+          "x": 299,
+          "y": 322,
+          "right": 310,
+          "bottom": 337,
+          "text": "周"
+        },
+        {
+          "x": 391.125,
+          "y": 322,
+          "right": 437,
+          "bottom": 337,
+          "text": "45% 已用"
+        },
+        {
+          "x": 299,
+          "y": 343,
+          "right": 344.390625,
+          "bottom": 357,
+          "text": "2天后重置"
+        },
+        {
+          "x": 299,
+          "y": 360,
+          "right": 310,
+          "bottom": 375,
+          "text": "月"
+        },
+        {
+          "x": 391.125,
+          "y": 360,
+          "right": 437,
+          "bottom": 375,
+          "text": "86% 已用"
+        },
+        {
+          "x": 299,
+          "y": 381,
+          "right": 349.78125,
+          "bottom": 395,
+          "text": "27天后重置"
+        },
+        {
+          "x": 299,
+          "y": 404,
+          "right": 376.5625,
+          "bottom": 419,
+          "text": "CommandCode"
+        },
+        {
+          "x": 299,
+          "y": 423,
+          "right": 326.9375,
+          "bottom": 438,
+          "text": "5小时"
+        },
+        {
+          "x": 388.734375,
+          "y": 423,
+          "right": 437,
+          "bottom": 438,
+          "text": "0.9% 已用"
+        },
+        {
+          "x": 299,
+          "y": 444,
+          "right": 354.390625,
+          "bottom": 458,
+          "text": "3小时后重置"
+        },
+        {
+          "x": 299,
+          "y": 461,
+          "right": 310,
+          "bottom": 476,
+          "text": "周"
+        },
+        {
+          "x": 388.734375,
+          "y": 461,
+          "right": 437,
+          "bottom": 476,
+          "text": "0.4% 已用"
+        },
+        {
+          "x": 299,
+          "y": 482,
+          "right": 344.390625,
+          "bottom": 496,
+          "text": "5天后重置"
+        },
+        {
+          "x": 299,
+          "y": 499,
+          "right": 310,
+          "bottom": 514,
+          "text": "月"
+        },
+        {
+          "x": 382.796875,
+          "y": 499,
+          "right": 437,
+          "bottom": 514,
+          "text": "23.2% 已用"
+        },
+        {
+          "x": 299,
+          "y": 520,
+          "right": 359,
+          "bottom": 534,
+          "text": "本期月度额度"
+        },
+        {
+          "x": 299,
+          "y": 537,
+          "right": 339,
+          "bottom": 551,
+          "text": "本期费用"
+        },
+        {
+          "x": 407.875,
+          "y": 537,
+          "right": 437,
+          "bottom": 551,
+          "text": "$16.24"
+        },
+        {
+          "x": 299,
+          "y": 556,
+          "right": 339,
+          "bottom": 570,
+          "text": "剩余额度"
+        },
+        {
+          "x": 407.875,
+          "y": 556,
+          "right": 437,
+          "bottom": 570,
+          "text": "$53.77"
+        }
+      ],
+      "ok": true
+    }
+  },
+  {
+    "name": "light text at 125% CSS zoom",
+    "pass": true,
+    "data": {
+      "capsule": {
+        "x": 355,
+        "y": 255.5,
+        "width": 210,
+        "height": 477,
+        "top": 255.5,
+        "right": 565,
+        "bottom": 732.5,
+        "left": 355
+      },
+      "lock": {
+        "x": 520,
+        "y": 261.25,
+        "width": 30,
+        "height": 30,
+        "top": 261.25,
+        "right": 550,
+        "bottom": 291.25,
+        "left": 520
+      },
+      "boxes": [
+        {
+          "x": 373.5,
+          "y": 298.375,
+          "right": 435.578125,
+          "bottom": 316.375,
+          "text": "DeepSeek"
+        },
+        {
+          "x": 497.46875,
+          "y": 296.5,
+          "right": 546.5,
+          "bottom": 318.5,
+          "text": "¥58.36"
+        },
+        {
+          "x": 373.5,
+          "y": 331.5,
+          "right": 439.859375,
+          "bottom": 349.5,
+          "text": "OpenCode"
+        },
+        {
+          "x": 373.5,
+          "y": 355.25,
+          "right": 408.421875,
+          "bottom": 373.25,
+          "text": "5小时"
+        },
+        {
+          "x": 489.15625,
+          "y": 355.25,
+          "right": 546.5,
+          "bottom": 373.25,
+          "text": "10% 已用"
+        },
+        {
+          "x": 373.5,
+          "y": 381.75,
+          "right": 442.75,
+          "bottom": 397.75,
+          "text": "4小时后重置"
+        },
+        {
+          "x": 373.5,
+          "y": 402.75,
+          "right": 387.25,
+          "bottom": 420.75,
+          "text": "周"
+        },
+        {
+          "x": 489.15625,
+          "y": 402.75,
+          "right": 546.5,
+          "bottom": 420.75,
+          "text": "45% 已用"
+        },
+        {
+          "x": 373.5,
+          "y": 429.25,
+          "right": 430.25,
+          "bottom": 445.25,
+          "text": "2天后重置"
+        },
+        {
+          "x": 373.5,
+          "y": 450.25,
+          "right": 387.25,
+          "bottom": 468.25,
+          "text": "月"
+        },
+        {
+          "x": 489.15625,
+          "y": 450.25,
+          "right": 546.5,
+          "bottom": 468.25,
+          "text": "86% 已用"
+        },
+        {
+          "x": 373.5,
+          "y": 476.75,
+          "right": 436.984375,
+          "bottom": 492.75,
+          "text": "27天后重置"
+        },
+        {
+          "x": 373.5,
+          "y": 505.25,
+          "right": 470.4375,
+          "bottom": 523.25,
+          "text": "CommandCode"
+        },
+        {
+          "x": 373.5,
+          "y": 529,
+          "right": 408.421875,
+          "bottom": 547,
+          "text": "5小时"
+        },
+        {
+          "x": 486.171875,
+          "y": 529,
+          "right": 546.5,
+          "bottom": 547,
+          "text": "0.9% 已用"
+        },
+        {
+          "x": 373.5,
+          "y": 555.5,
+          "right": 442.75,
+          "bottom": 571.5,
+          "text": "3小时后重置"
+        },
+        {
+          "x": 373.5,
+          "y": 576.5,
+          "right": 387.25,
+          "bottom": 594.5,
+          "text": "周"
+        },
+        {
+          "x": 486.171875,
+          "y": 576.5,
+          "right": 546.5,
+          "bottom": 594.5,
+          "text": "0.4% 已用"
+        },
+        {
+          "x": 373.5,
+          "y": 603,
+          "right": 430.25,
+          "bottom": 619,
+          "text": "5天后重置"
+        },
+        {
+          "x": 373.5,
+          "y": 624,
+          "right": 387.25,
+          "bottom": 642,
+          "text": "月"
+        },
+        {
+          "x": 478.75,
+          "y": 624,
+          "right": 546.5,
+          "bottom": 642,
+          "text": "23.2% 已用"
+        },
+        {
+          "x": 373.5,
+          "y": 650.5,
+          "right": 448.5,
+          "bottom": 666.5,
+          "text": "本期月度额度"
+        },
+        {
+          "x": 373.5,
+          "y": 672.5,
+          "right": 423.5,
+          "bottom": 688.5,
+          "text": "本期费用"
+        },
+        {
+          "x": 510.09375,
+          "y": 672.5,
+          "right": 546.5,
+          "bottom": 688.5,
+          "text": "$16.24"
+        },
+        {
+          "x": 373.5,
+          "y": 696.25,
+          "right": 423.5,
+          "bottom": 712.25,
+          "text": "剩余额度"
+        },
+        {
+          "x": 510.09375,
+          "y": 696.25,
+          "right": 546.5,
+          "bottom": 712.25,
+          "text": "$53.77"
+        }
+      ],
+      "ok": true
+    }
+  },
+  {
+    "name": "light text at 150% CSS zoom",
+    "pass": true,
+    "data": {
+      "capsule": {
+        "x": 426,
+        "y": 215.5,
+        "width": 252,
+        "height": 572,
+        "top": 215.5,
+        "right": 678,
+        "bottom": 787.5,
+        "left": 426
+      },
+      "lock": {
+        "x": 624,
+        "y": 223.5,
+        "width": 36,
+        "height": 36,
+        "top": 223.5,
+        "right": 660,
+        "bottom": 259.5,
+        "left": 624
+      },
+      "boxes": [
+        {
+          "x": 448,
+          "y": 266.75,
+          "right": 522.484375,
+          "bottom": 288.75,
+          "text": "DeepSeek"
+        },
+        {
+          "x": 597.15625,
+          "y": 264.5,
+          "right": 656,
+          "bottom": 290.5,
+          "text": "¥58.36"
+        },
+        {
+          "x": 448,
+          "y": 306.5,
+          "right": 527.625,
+          "bottom": 328.5,
+          "text": "OpenCode"
+        },
+        {
+          "x": 448,
+          "y": 335,
+          "right": 489.90625,
+          "bottom": 357,
+          "text": "5小时"
+        },
+        {
+          "x": 587.1875,
+          "y": 335,
+          "right": 656,
+          "bottom": 357,
+          "text": "10% 已用"
+        },
+        {
+          "x": 448,
+          "y": 367,
+          "right": 531.09375,
+          "bottom": 387,
+          "text": "4小时后重置"
+        },
+        {
+          "x": 448,
+          "y": 392,
+          "right": 464.5,
+          "bottom": 414,
+          "text": "周"
+        },
+        {
+          "x": 587.1875,
+          "y": 392,
+          "right": 656,
+          "bottom": 414,
+          "text": "45% 已用"
+        },
+        {
+          "x": 448,
+          "y": 424,
+          "right": 516.09375,
+          "bottom": 444,
+          "text": "2天后重置"
+        },
+        {
+          "x": 448,
+          "y": 449,
+          "right": 464.5,
+          "bottom": 471,
+          "text": "月"
+        },
+        {
+          "x": 587.1875,
+          "y": 449,
+          "right": 656,
+          "bottom": 471,
+          "text": "86% 已用"
+        },
+        {
+          "x": 448,
+          "y": 481,
+          "right": 524.171875,
+          "bottom": 501,
+          "text": "27天后重置"
+        },
+        {
+          "x": 448,
+          "y": 515,
+          "right": 564.328125,
+          "bottom": 537,
+          "text": "CommandCode"
+        },
+        {
+          "x": 448,
+          "y": 543.5,
+          "right": 489.90625,
+          "bottom": 565.5,
+          "text": "5小时"
+        },
+        {
+          "x": 583.609375,
+          "y": 543.5,
+          "right": 656,
+          "bottom": 565.5,
+          "text": "0.9% 已用"
+        },
+        {
+          "x": 448,
+          "y": 575.5,
+          "right": 531.09375,
+          "bottom": 595.5,
+          "text": "3小时后重置"
+        },
+        {
+          "x": 448,
+          "y": 600.5,
+          "right": 464.5,
+          "bottom": 622.5,
+          "text": "周"
+        },
+        {
+          "x": 583.609375,
+          "y": 600.5,
+          "right": 656,
+          "bottom": 622.5,
+          "text": "0.4% 已用"
+        },
+        {
+          "x": 448,
+          "y": 632.5,
+          "right": 516.09375,
+          "bottom": 652.5,
+          "text": "5天后重置"
+        },
+        {
+          "x": 448,
+          "y": 657.5,
+          "right": 464.5,
+          "bottom": 679.5,
+          "text": "月"
+        },
+        {
+          "x": 574.703125,
+          "y": 657.5,
+          "right": 656,
+          "bottom": 679.5,
+          "text": "23.2% 已用"
+        },
+        {
+          "x": 448,
+          "y": 689.5,
+          "right": 538,
+          "bottom": 709.5,
+          "text": "本期月度额度"
+        },
+        {
+          "x": 448,
+          "y": 715.5,
+          "right": 508,
+          "bottom": 735.5,
+          "text": "本期费用"
+        },
+        {
+          "x": 612.3125,
+          "y": 715.5,
+          "right": 656,
+          "bottom": 735.5,
+          "text": "$16.24"
+        },
+        {
+          "x": 448,
+          "y": 744,
+          "right": 508,
+          "bottom": 764,
+          "text": "剩余额度"
+        },
+        {
+          "x": 612.3125,
+          "y": 744,
+          "right": 656,
+          "bottom": 764,
+          "text": "$53.77"
+        }
+      ],
+      "ok": true
+    }
+  },
+  {
+    "name": "light text at 200% CSS zoom",
+    "pass": true,
+    "data": {
+      "capsule": {
+        "x": 568,
+        "y": 20,
+        "width": 336,
+        "height": 764,
+        "top": 20,
+        "right": 904,
+        "bottom": 784,
+        "left": 568
+      },
+      "lock": {
+        "x": 832,
+        "y": 30,
+        "width": 48,
+        "height": 48,
+        "top": 30,
+        "right": 880,
+        "bottom": 78,
+        "left": 832
+      },
+      "boxes": [
+        {
+          "x": 598,
+          "y": 89,
+          "right": 697.3125,
+          "bottom": 119,
+          "text": "DeepSeek"
+        },
+        {
+          "x": 795.546875,
+          "y": 86,
+          "right": 874,
+          "bottom": 121,
+          "text": "¥58.36"
+        },
+        {
+          "x": 598,
+          "y": 142,
+          "right": 704.15625,
+          "bottom": 172,
+          "text": "OpenCode"
+        },
+        {
+          "x": 598,
+          "y": 180,
+          "right": 653.859375,
+          "bottom": 210,
+          "text": "5小时"
+        },
+        {
+          "x": 782.25,
+          "y": 180,
+          "right": 874,
+          "bottom": 210,
+          "text": "10% 已用"
+        },
+        {
+          "x": 598,
+          "y": 222,
+          "right": 708.78125,
+          "bottom": 249,
+          "text": "4小时后重置"
+        },
+        {
+          "x": 598,
+          "y": 256,
+          "right": 620,
+          "bottom": 286,
+          "text": "周"
+        },
+        {
+          "x": 782.25,
+          "y": 256,
+          "right": 874,
+          "bottom": 286,
+          "text": "45% 已用"
+        },
+        {
+          "x": 598,
+          "y": 298,
+          "right": 688.78125,
+          "bottom": 325,
+          "text": "2天后重置"
+        },
+        {
+          "x": 598,
+          "y": 332,
+          "right": 620,
+          "bottom": 362,
+          "text": "月"
+        },
+        {
+          "x": 782.25,
+          "y": 332,
+          "right": 874,
+          "bottom": 362,
+          "text": "86% 已用"
+        },
+        {
+          "x": 598,
+          "y": 374,
+          "right": 699.5625,
+          "bottom": 401,
+          "text": "27天后重置"
+        },
+        {
+          "x": 598,
+          "y": 420,
+          "right": 753.109375,
+          "bottom": 450,
+          "text": "CommandCode"
+        },
+        {
+          "x": 598,
+          "y": 458,
+          "right": 653.859375,
+          "bottom": 488,
+          "text": "5小时"
+        },
+        {
+          "x": 777.46875,
+          "y": 458,
+          "right": 874,
+          "bottom": 488,
+          "text": "0.9% 已用"
+        },
+        {
+          "x": 598,
+          "y": 500,
+          "right": 708.78125,
+          "bottom": 527,
+          "text": "3小时后重置"
+        },
+        {
+          "x": 598,
+          "y": 534,
+          "right": 620,
+          "bottom": 564,
+          "text": "周"
+        },
+        {
+          "x": 777.46875,
+          "y": 534,
+          "right": 874,
+          "bottom": 564,
+          "text": "0.4% 已用"
+        },
+        {
+          "x": 598,
+          "y": 576,
+          "right": 688.78125,
+          "bottom": 603,
+          "text": "5天后重置"
+        },
+        {
+          "x": 598,
+          "y": 610,
+          "right": 620,
+          "bottom": 640,
+          "text": "月"
+        },
+        {
+          "x": 765.609375,
+          "y": 610,
+          "right": 874,
+          "bottom": 640,
+          "text": "23.2% 已用"
+        },
+        {
+          "x": 598,
+          "y": 652,
+          "right": 718,
+          "bottom": 679,
+          "text": "本期月度额度"
+        },
+        {
+          "x": 598,
+          "y": 687,
+          "right": 678,
+          "bottom": 714,
+          "text": "本期费用"
+        },
+        {
+          "x": 815.75,
+          "y": 687,
+          "right": 874,
+          "bottom": 714,
+          "text": "$16.24"
+        },
+        {
+          "x": 598,
+          "y": 725,
+          "right": 678,
+          "bottom": 752,
+          "text": "剩余额度"
+        },
+        {
+          "x": 815.75,
+          "y": 725,
+          "right": 874,
+          "bottom": 752,
+          "text": "$53.77"
+        }
+      ],
+      "ok": true
+    }
+  },
+  {
+    "name": "dark text at 80% CSS zoom",
+    "pass": true,
+    "data": {
+      "capsule": {
+        "x": 227.1875,
+        "y": 163.0625,
+        "width": 134.390625,
+        "height": 305.71875,
+        "top": 163.0625,
+        "right": 361.578125,
+        "bottom": 468.78125,
+        "left": 227.1875
+      },
+      "lock": {
+        "x": 332.796875,
+        "y": 167.203125,
+        "width": 19.1875,
+        "height": 19.1875,
+        "top": 167.203125,
+        "right": 351.984375,
+        "bottom": 186.390625,
+        "left": 332.796875
+      },
+      "boxes": [
+        {
+          "x": 239.375,
+          "y": 190.859375,
+          "right": 279.109375,
+          "bottom": 201.859375,
+          "text": "DeepSeek"
+        },
+        {
+          "x": 318,
+          "y": 189.65625,
+          "right": 349.390625,
+          "bottom": 203.65625,
+          "text": "¥58.36"
+        },
+        {
+          "x": 239.375,
+          "y": 212.0625,
+          "right": 281.84375,
+          "bottom": 223.0625,
+          "text": "OpenCode"
+        },
+        {
+          "x": 239.375,
+          "y": 227.25,
+          "right": 261.71875,
+          "bottom": 238.25,
+          "text": "5小时"
+        },
+        {
+          "x": 312.6875,
+          "y": 227.25,
+          "right": 349.390625,
+          "bottom": 238.25,
+          "text": "10% 已用"
+        },
+        {
+          "x": 239.375,
+          "y": 243.828125,
+          "right": 283.6875,
+          "bottom": 254.828125,
+          "text": "4小时后重置"
+        },
+        {
+          "x": 239.375,
+          "y": 257.609375,
+          "right": 248.1875,
+          "bottom": 268.609375,
+          "text": "周"
+        },
+        {
+          "x": 312.6875,
+          "y": 257.609375,
+          "right": 349.390625,
+          "bottom": 268.609375,
+          "text": "45% 已用"
+        },
+        {
+          "x": 239.375,
+          "y": 274.1875,
+          "right": 275.6875,
+          "bottom": 285.1875,
+          "text": "2天后重置"
+        },
+        {
+          "x": 239.375,
+          "y": 287.96875,
+          "right": 248.1875,
+          "bottom": 298.96875,
+          "text": "月"
+        },
+        {
+          "x": 312.6875,
+          "y": 287.96875,
+          "right": 349.390625,
+          "bottom": 298.96875,
+          "text": "86% 已用"
+        },
+        {
+          "x": 239.375,
+          "y": 304.546875,
+          "right": 280,
+          "bottom": 315.546875,
+          "text": "27天后重置"
+        },
+        {
+          "x": 239.375,
+          "y": 323.140625,
+          "right": 301.421875,
+          "bottom": 334.140625,
+          "text": "CommandCode"
+        },
+        {
+          "x": 239.375,
+          "y": 338.328125,
+          "right": 261.71875,
+          "bottom": 349.328125,
+          "text": "5小时"
+        },
+        {
+          "x": 310.78125,
+          "y": 338.328125,
+          "right": 349.390625,
+          "bottom": 349.328125,
+          "text": "0.9% 已用"
+        },
+        {
+          "x": 239.375,
+          "y": 354.90625,
+          "right": 283.6875,
+          "bottom": 365.90625,
+          "text": "3小时后重置"
+        },
+        {
+          "x": 239.375,
+          "y": 368.6875,
+          "right": 248.1875,
+          "bottom": 379.6875,
+          "text": "周"
+        },
+        {
+          "x": 310.78125,
+          "y": 368.6875,
+          "right": 349.390625,
+          "bottom": 379.6875,
+          "text": "0.4% 已用"
+        },
+        {
+          "x": 239.375,
+          "y": 385.265625,
+          "right": 275.6875,
+          "bottom": 396.265625,
+          "text": "5天后重置"
+        },
+        {
+          "x": 239.375,
+          "y": 399.046875,
+          "right": 248.1875,
+          "bottom": 410.046875,
+          "text": "月"
+        },
+        {
+          "x": 306.03125,
+          "y": 399.046875,
+          "right": 349.390625,
+          "bottom": 410.046875,
+          "text": "23.2% 已用"
+        },
+        {
+          "x": 239.375,
+          "y": 415.625,
+          "right": 287.375,
+          "bottom": 426.625,
+          "text": "本期月度额度"
+        },
+        {
+          "x": 239.375,
+          "y": 429.40625,
+          "right": 271.375,
+          "bottom": 440.40625,
+          "text": "本期费用"
+        },
+        {
+          "x": 326.09375,
+          "y": 429.40625,
+          "right": 349.390625,
+          "bottom": 440.40625,
+          "text": "$16.24"
+        },
+        {
+          "x": 239.375,
+          "y": 444.59375,
+          "right": 271.375,
+          "bottom": 455.59375,
+          "text": "剩余额度"
+        },
+        {
+          "x": 326.09375,
+          "y": 444.59375,
+          "right": 349.390625,
+          "bottom": 455.59375,
+          "text": "$53.77"
+        }
+      ],
+      "ok": true
+    }
+  },
+  {
+    "name": "dark text at 100% CSS zoom",
+    "pass": true,
+    "data": {
+      "capsule": {
+        "x": 284,
+        "y": 204,
+        "width": 168,
+        "height": 382,
+        "top": 204,
+        "right": 452,
+        "bottom": 586,
+        "left": 284
+      },
+      "lock": {
+        "x": 416,
+        "y": 209,
+        "width": 24,
+        "height": 24,
+        "top": 209,
+        "right": 440,
+        "bottom": 233,
+        "left": 416
+      },
+      "boxes": [
+        {
+          "x": 299,
+          "y": 238.5,
+          "right": 348.65625,
+          "bottom": 253.5,
+          "text": "DeepSeek"
+        },
+        {
+          "x": 397.765625,
+          "y": 237,
+          "right": 437,
+          "bottom": 254,
+          "text": "¥58.36"
+        },
+        {
+          "x": 299,
+          "y": 265,
+          "right": 352.078125,
+          "bottom": 280,
+          "text": "OpenCode"
+        },
+        {
+          "x": 299,
+          "y": 284,
+          "right": 326.9375,
+          "bottom": 299,
+          "text": "5小时"
+        },
+        {
+          "x": 391.125,
+          "y": 284,
+          "right": 437,
+          "bottom": 299,
+          "text": "10% 已用"
+        },
+        {
+          "x": 299,
+          "y": 305,
+          "right": 354.390625,
+          "bottom": 319,
+          "text": "4小时后重置"
+        },
+        {
+          "x": 299,
+          "y": 322,
+          "right": 310,
+          "bottom": 337,
+          "text": "周"
+        },
+        {
+          "x": 391.125,
+          "y": 322,
+          "right": 437,
+          "bottom": 337,
+          "text": "45% 已用"
+        },
+        {
+          "x": 299,
+          "y": 343,
+          "right": 344.390625,
+          "bottom": 357,
+          "text": "2天后重置"
+        },
+        {
+          "x": 299,
+          "y": 360,
+          "right": 310,
+          "bottom": 375,
+          "text": "月"
+        },
+        {
+          "x": 391.125,
+          "y": 360,
+          "right": 437,
+          "bottom": 375,
+          "text": "86% 已用"
+        },
+        {
+          "x": 299,
+          "y": 381,
+          "right": 349.78125,
+          "bottom": 395,
+          "text": "27天后重置"
+        },
+        {
+          "x": 299,
+          "y": 404,
+          "right": 376.5625,
+          "bottom": 419,
+          "text": "CommandCode"
+        },
+        {
+          "x": 299,
+          "y": 423,
+          "right": 326.9375,
+          "bottom": 438,
+          "text": "5小时"
+        },
+        {
+          "x": 388.734375,
+          "y": 423,
+          "right": 437,
+          "bottom": 438,
+          "text": "0.9% 已用"
+        },
+        {
+          "x": 299,
+          "y": 444,
+          "right": 354.390625,
+          "bottom": 458,
+          "text": "3小时后重置"
+        },
+        {
+          "x": 299,
+          "y": 461,
+          "right": 310,
+          "bottom": 476,
+          "text": "周"
+        },
+        {
+          "x": 388.734375,
+          "y": 461,
+          "right": 437,
+          "bottom": 476,
+          "text": "0.4% 已用"
+        },
+        {
+          "x": 299,
+          "y": 482,
+          "right": 344.390625,
+          "bottom": 496,
+          "text": "5天后重置"
+        },
+        {
+          "x": 299,
+          "y": 499,
+          "right": 310,
+          "bottom": 514,
+          "text": "月"
+        },
+        {
+          "x": 382.796875,
+          "y": 499,
+          "right": 437,
+          "bottom": 514,
+          "text": "23.2% 已用"
+        },
+        {
+          "x": 299,
+          "y": 520,
+          "right": 359,
+          "bottom": 534,
+          "text": "本期月度额度"
+        },
+        {
+          "x": 299,
+          "y": 537,
+          "right": 339,
+          "bottom": 551,
+          "text": "本期费用"
+        },
+        {
+          "x": 407.875,
+          "y": 537,
+          "right": 437,
+          "bottom": 551,
+          "text": "$16.24"
+        },
+        {
+          "x": 299,
+          "y": 556,
+          "right": 339,
+          "bottom": 570,
+          "text": "剩余额度"
+        },
+        {
+          "x": 407.875,
+          "y": 556,
+          "right": 437,
+          "bottom": 570,
+          "text": "$53.77"
+        }
+      ],
+      "ok": true
+    }
+  },
+  {
+    "name": "dark text at 125% CSS zoom",
+    "pass": true,
+    "data": {
+      "capsule": {
+        "x": 355,
+        "y": 255.5,
+        "width": 210,
+        "height": 477,
+        "top": 255.5,
+        "right": 565,
+        "bottom": 732.5,
+        "left": 355
+      },
+      "lock": {
+        "x": 520,
+        "y": 261.25,
+        "width": 30,
+        "height": 30,
+        "top": 261.25,
+        "right": 550,
+        "bottom": 291.25,
+        "left": 520
+      },
+      "boxes": [
+        {
+          "x": 373.5,
+          "y": 298.375,
+          "right": 435.578125,
+          "bottom": 316.375,
+          "text": "DeepSeek"
+        },
+        {
+          "x": 497.46875,
+          "y": 296.5,
+          "right": 546.5,
+          "bottom": 318.5,
+          "text": "¥58.36"
+        },
+        {
+          "x": 373.5,
+          "y": 331.5,
+          "right": 439.859375,
+          "bottom": 349.5,
+          "text": "OpenCode"
+        },
+        {
+          "x": 373.5,
+          "y": 355.25,
+          "right": 408.421875,
+          "bottom": 373.25,
+          "text": "5小时"
+        },
+        {
+          "x": 489.15625,
+          "y": 355.25,
+          "right": 546.5,
+          "bottom": 373.25,
+          "text": "10% 已用"
+        },
+        {
+          "x": 373.5,
+          "y": 381.75,
+          "right": 442.75,
+          "bottom": 397.75,
+          "text": "4小时后重置"
+        },
+        {
+          "x": 373.5,
+          "y": 402.75,
+          "right": 387.25,
+          "bottom": 420.75,
+          "text": "周"
+        },
+        {
+          "x": 489.15625,
+          "y": 402.75,
+          "right": 546.5,
+          "bottom": 420.75,
+          "text": "45% 已用"
+        },
+        {
+          "x": 373.5,
+          "y": 429.25,
+          "right": 430.25,
+          "bottom": 445.25,
+          "text": "2天后重置"
+        },
+        {
+          "x": 373.5,
+          "y": 450.25,
+          "right": 387.25,
+          "bottom": 468.25,
+          "text": "月"
+        },
+        {
+          "x": 489.15625,
+          "y": 450.25,
+          "right": 546.5,
+          "bottom": 468.25,
+          "text": "86% 已用"
+        },
+        {
+          "x": 373.5,
+          "y": 476.75,
+          "right": 436.984375,
+          "bottom": 492.75,
+          "text": "27天后重置"
+        },
+        {
+          "x": 373.5,
+          "y": 505.25,
+          "right": 470.4375,
+          "bottom": 523.25,
+          "text": "CommandCode"
+        },
+        {
+          "x": 373.5,
+          "y": 529,
+          "right": 408.421875,
+          "bottom": 547,
+          "text": "5小时"
+        },
+        {
+          "x": 486.171875,
+          "y": 529,
+          "right": 546.5,
+          "bottom": 547,
+          "text": "0.9% 已用"
+        },
+        {
+          "x": 373.5,
+          "y": 555.5,
+          "right": 442.75,
+          "bottom": 571.5,
+          "text": "3小时后重置"
+        },
+        {
+          "x": 373.5,
+          "y": 576.5,
+          "right": 387.25,
+          "bottom": 594.5,
+          "text": "周"
+        },
+        {
+          "x": 486.171875,
+          "y": 576.5,
+          "right": 546.5,
+          "bottom": 594.5,
+          "text": "0.4% 已用"
+        },
+        {
+          "x": 373.5,
+          "y": 603,
+          "right": 430.25,
+          "bottom": 619,
+          "text": "5天后重置"
+        },
+        {
+          "x": 373.5,
+          "y": 624,
+          "right": 387.25,
+          "bottom": 642,
+          "text": "月"
+        },
+        {
+          "x": 478.75,
+          "y": 624,
+          "right": 546.5,
+          "bottom": 642,
+          "text": "23.2% 已用"
+        },
+        {
+          "x": 373.5,
+          "y": 650.5,
+          "right": 448.5,
+          "bottom": 666.5,
+          "text": "本期月度额度"
+        },
+        {
+          "x": 373.5,
+          "y": 672.5,
+          "right": 423.5,
+          "bottom": 688.5,
+          "text": "本期费用"
+        },
+        {
+          "x": 510.09375,
+          "y": 672.5,
+          "right": 546.5,
+          "bottom": 688.5,
+          "text": "$16.24"
+        },
+        {
+          "x": 373.5,
+          "y": 696.25,
+          "right": 423.5,
+          "bottom": 712.25,
+          "text": "剩余额度"
+        },
+        {
+          "x": 510.09375,
+          "y": 696.25,
+          "right": 546.5,
+          "bottom": 712.25,
+          "text": "$53.77"
+        }
+      ],
+      "ok": true
+    }
+  },
+  {
+    "name": "dark text at 150% CSS zoom",
+    "pass": true,
+    "data": {
+      "capsule": {
+        "x": 426,
+        "y": 215.5,
+        "width": 252,
+        "height": 572,
+        "top": 215.5,
+        "right": 678,
+        "bottom": 787.5,
+        "left": 426
+      },
+      "lock": {
+        "x": 624,
+        "y": 223.5,
+        "width": 36,
+        "height": 36,
+        "top": 223.5,
+        "right": 660,
+        "bottom": 259.5,
+        "left": 624
+      },
+      "boxes": [
+        {
+          "x": 448,
+          "y": 266.75,
+          "right": 522.484375,
+          "bottom": 288.75,
+          "text": "DeepSeek"
+        },
+        {
+          "x": 597.15625,
+          "y": 264.5,
+          "right": 656,
+          "bottom": 290.5,
+          "text": "¥58.36"
+        },
+        {
+          "x": 448,
+          "y": 306.5,
+          "right": 527.625,
+          "bottom": 328.5,
+          "text": "OpenCode"
+        },
+        {
+          "x": 448,
+          "y": 335,
+          "right": 489.90625,
+          "bottom": 357,
+          "text": "5小时"
+        },
+        {
+          "x": 587.1875,
+          "y": 335,
+          "right": 656,
+          "bottom": 357,
+          "text": "10% 已用"
+        },
+        {
+          "x": 448,
+          "y": 367,
+          "right": 531.09375,
+          "bottom": 387,
+          "text": "4小时后重置"
+        },
+        {
+          "x": 448,
+          "y": 392,
+          "right": 464.5,
+          "bottom": 414,
+          "text": "周"
+        },
+        {
+          "x": 587.1875,
+          "y": 392,
+          "right": 656,
+          "bottom": 414,
+          "text": "45% 已用"
+        },
+        {
+          "x": 448,
+          "y": 424,
+          "right": 516.09375,
+          "bottom": 444,
+          "text": "2天后重置"
+        },
+        {
+          "x": 448,
+          "y": 449,
+          "right": 464.5,
+          "bottom": 471,
+          "text": "月"
+        },
+        {
+          "x": 587.1875,
+          "y": 449,
+          "right": 656,
+          "bottom": 471,
+          "text": "86% 已用"
+        },
+        {
+          "x": 448,
+          "y": 481,
+          "right": 524.171875,
+          "bottom": 501,
+          "text": "27天后重置"
+        },
+        {
+          "x": 448,
+          "y": 515,
+          "right": 564.328125,
+          "bottom": 537,
+          "text": "CommandCode"
+        },
+        {
+          "x": 448,
+          "y": 543.5,
+          "right": 489.90625,
+          "bottom": 565.5,
+          "text": "5小时"
+        },
+        {
+          "x": 583.609375,
+          "y": 543.5,
+          "right": 656,
+          "bottom": 565.5,
+          "text": "0.9% 已用"
+        },
+        {
+          "x": 448,
+          "y": 575.5,
+          "right": 531.09375,
+          "bottom": 595.5,
+          "text": "3小时后重置"
+        },
+        {
+          "x": 448,
+          "y": 600.5,
+          "right": 464.5,
+          "bottom": 622.5,
+          "text": "周"
+        },
+        {
+          "x": 583.609375,
+          "y": 600.5,
+          "right": 656,
+          "bottom": 622.5,
+          "text": "0.4% 已用"
+        },
+        {
+          "x": 448,
+          "y": 632.5,
+          "right": 516.09375,
+          "bottom": 652.5,
+          "text": "5天后重置"
+        },
+        {
+          "x": 448,
+          "y": 657.5,
+          "right": 464.5,
+          "bottom": 679.5,
+          "text": "月"
+        },
+        {
+          "x": 574.703125,
+          "y": 657.5,
+          "right": 656,
+          "bottom": 679.5,
+          "text": "23.2% 已用"
+        },
+        {
+          "x": 448,
+          "y": 689.5,
+          "right": 538,
+          "bottom": 709.5,
+          "text": "本期月度额度"
+        },
+        {
+          "x": 448,
+          "y": 715.5,
+          "right": 508,
+          "bottom": 735.5,
+          "text": "本期费用"
+        },
+        {
+          "x": 612.3125,
+          "y": 715.5,
+          "right": 656,
+          "bottom": 735.5,
+          "text": "$16.24"
+        },
+        {
+          "x": 448,
+          "y": 744,
+          "right": 508,
+          "bottom": 764,
+          "text": "剩余额度"
+        },
+        {
+          "x": 612.3125,
+          "y": 744,
+          "right": 656,
+          "bottom": 764,
+          "text": "$53.77"
+        }
+      ],
+      "ok": true
+    }
+  },
+  {
+    "name": "dark text at 200% CSS zoom",
+    "pass": true,
+    "data": {
+      "capsule": {
+        "x": 568,
+        "y": 20,
+        "width": 336,
+        "height": 764,
+        "top": 20,
+        "right": 904,
+        "bottom": 784,
+        "left": 568
+      },
+      "lock": {
+        "x": 832,
+        "y": 30,
+        "width": 48,
+        "height": 48,
+        "top": 30,
+        "right": 880,
+        "bottom": 78,
+        "left": 832
+      },
+      "boxes": [
+        {
+          "x": 598,
+          "y": 89,
+          "right": 697.3125,
+          "bottom": 119,
+          "text": "DeepSeek"
+        },
+        {
+          "x": 795.546875,
+          "y": 86,
+          "right": 874,
+          "bottom": 121,
+          "text": "¥58.36"
+        },
+        {
+          "x": 598,
+          "y": 142,
+          "right": 704.15625,
+          "bottom": 172,
+          "text": "OpenCode"
+        },
+        {
+          "x": 598,
+          "y": 180,
+          "right": 653.859375,
+          "bottom": 210,
+          "text": "5小时"
+        },
+        {
+          "x": 782.25,
+          "y": 180,
+          "right": 874,
+          "bottom": 210,
+          "text": "10% 已用"
+        },
+        {
+          "x": 598,
+          "y": 222,
+          "right": 708.78125,
+          "bottom": 249,
+          "text": "4小时后重置"
+        },
+        {
+          "x": 598,
+          "y": 256,
+          "right": 620,
+          "bottom": 286,
+          "text": "周"
+        },
+        {
+          "x": 782.25,
+          "y": 256,
+          "right": 874,
+          "bottom": 286,
+          "text": "45% 已用"
+        },
+        {
+          "x": 598,
+          "y": 298,
+          "right": 688.78125,
+          "bottom": 325,
+          "text": "2天后重置"
+        },
+        {
+          "x": 598,
+          "y": 332,
+          "right": 620,
+          "bottom": 362,
+          "text": "月"
+        },
+        {
+          "x": 782.25,
+          "y": 332,
+          "right": 874,
+          "bottom": 362,
+          "text": "86% 已用"
+        },
+        {
+          "x": 598,
+          "y": 374,
+          "right": 699.5625,
+          "bottom": 401,
+          "text": "27天后重置"
+        },
+        {
+          "x": 598,
+          "y": 420,
+          "right": 753.109375,
+          "bottom": 450,
+          "text": "CommandCode"
+        },
+        {
+          "x": 598,
+          "y": 458,
+          "right": 653.859375,
+          "bottom": 488,
+          "text": "5小时"
+        },
+        {
+          "x": 777.46875,
+          "y": 458,
+          "right": 874,
+          "bottom": 488,
+          "text": "0.9% 已用"
+        },
+        {
+          "x": 598,
+          "y": 500,
+          "right": 708.78125,
+          "bottom": 527,
+          "text": "3小时后重置"
+        },
+        {
+          "x": 598,
+          "y": 534,
+          "right": 620,
+          "bottom": 564,
+          "text": "周"
+        },
+        {
+          "x": 777.46875,
+          "y": 534,
+          "right": 874,
+          "bottom": 564,
+          "text": "0.4% 已用"
+        },
+        {
+          "x": 598,
+          "y": 576,
+          "right": 688.78125,
+          "bottom": 603,
+          "text": "5天后重置"
+        },
+        {
+          "x": 598,
+          "y": 610,
+          "right": 620,
+          "bottom": 640,
+          "text": "月"
+        },
+        {
+          "x": 765.609375,
+          "y": 610,
+          "right": 874,
+          "bottom": 640,
+          "text": "23.2% 已用"
+        },
+        {
+          "x": 598,
+          "y": 652,
+          "right": 718,
+          "bottom": 679,
+          "text": "本期月度额度"
+        },
+        {
+          "x": 598,
+          "y": 687,
+          "right": 678,
+          "bottom": 714,
+          "text": "本期费用"
+        },
+        {
+          "x": 815.75,
+          "y": 687,
+          "right": 874,
+          "bottom": 714,
+          "text": "$16.24"
+        },
+        {
+          "x": 598,
+          "y": 725,
+          "right": 678,
+          "bottom": 752,
+          "text": "剩余额度"
+        },
+        {
+          "x": 815.75,
+          "y": 725,
+          "right": 874,
+          "bottom": 752,
+          "text": "$53.77"
+        }
+      ],
+      "ok": true
+    }
+  },
+  {
+    "name": "optional host mounts complete shell",
+    "pass": true
+  },
+  {
+    "name": "host-mounted retains styling",
+    "pass": true,
+    "data": {
+      "capsule": {
+        "x": 30,
+        "y": 318,
+        "width": 168,
+        "height": 382,
+        "top": 318,
+        "right": 198,
+        "bottom": 700,
+        "left": 30
+      },
+      "lock": {
+        "x": 162,
+        "y": 323,
+        "width": 24,
+        "height": 24,
+        "top": 323,
+        "right": 186,
+        "bottom": 347,
+        "left": 162
+      },
+      "boxes": [
+        {
+          "x": 45,
+          "y": 352.5,
+          "right": 94.65625,
+          "bottom": 367.5,
+          "text": "DeepSeek"
+        },
+        {
+          "x": 143.765625,
+          "y": 351,
+          "right": 183,
+          "bottom": 368,
+          "text": "¥58.36"
+        },
+        {
+          "x": 45,
+          "y": 379,
+          "right": 98.078125,
+          "bottom": 394,
+          "text": "OpenCode"
+        },
+        {
+          "x": 45,
+          "y": 398,
+          "right": 72.9375,
+          "bottom": 413,
+          "text": "5小时"
+        },
+        {
+          "x": 137.125,
+          "y": 398,
+          "right": 183,
+          "bottom": 413,
+          "text": "10% 已用"
+        },
+        {
+          "x": 45,
+          "y": 419,
+          "right": 100.390625,
+          "bottom": 433,
+          "text": "4小时后重置"
+        },
+        {
+          "x": 45,
+          "y": 436,
+          "right": 56,
+          "bottom": 451,
+          "text": "周"
+        },
+        {
+          "x": 137.125,
+          "y": 436,
+          "right": 183,
+          "bottom": 451,
+          "text": "45% 已用"
+        },
+        {
+          "x": 45,
+          "y": 457,
+          "right": 90.390625,
+          "bottom": 471,
+          "text": "2天后重置"
+        },
+        {
+          "x": 45,
+          "y": 474,
+          "right": 56,
+          "bottom": 489,
+          "text": "月"
+        },
+        {
+          "x": 137.125,
+          "y": 474,
+          "right": 183,
+          "bottom": 489,
+          "text": "86% 已用"
+        },
+        {
+          "x": 45,
+          "y": 495,
+          "right": 95.78125,
+          "bottom": 509,
+          "text": "27天后重置"
+        },
+        {
+          "x": 45,
+          "y": 518,
+          "right": 122.5625,
+          "bottom": 533,
+          "text": "CommandCode"
+        },
+        {
+          "x": 45,
+          "y": 537,
+          "right": 72.9375,
+          "bottom": 552,
+          "text": "5小时"
+        },
+        {
+          "x": 134.734375,
+          "y": 537,
+          "right": 183,
+          "bottom": 552,
+          "text": "0.9% 已用"
+        },
+        {
+          "x": 45,
+          "y": 558,
+          "right": 100.390625,
+          "bottom": 572,
+          "text": "3小时后重置"
+        },
+        {
+          "x": 45,
+          "y": 575,
+          "right": 56,
+          "bottom": 590,
+          "text": "周"
+        },
+        {
+          "x": 134.734375,
+          "y": 575,
+          "right": 183,
+          "bottom": 590,
+          "text": "0.4% 已用"
+        },
+        {
+          "x": 45,
+          "y": 596,
+          "right": 90.390625,
+          "bottom": 610,
+          "text": "5天后重置"
+        },
+        {
+          "x": 45,
+          "y": 613,
+          "right": 56,
+          "bottom": 628,
+          "text": "月"
+        },
+        {
+          "x": 128.796875,
+          "y": 613,
+          "right": 183,
+          "bottom": 628,
+          "text": "23.2% 已用"
+        },
+        {
+          "x": 45,
+          "y": 634,
+          "right": 105,
+          "bottom": 648,
+          "text": "本期月度额度"
+        },
+        {
+          "x": 45,
+          "y": 651,
+          "right": 85,
+          "bottom": 665,
+          "text": "本期费用"
+        },
+        {
+          "x": 153.875,
+          "y": 651,
+          "right": 183,
+          "bottom": 665,
+          "text": "$16.24"
+        },
+        {
+          "x": 45,
+          "y": 670,
+          "right": 85,
+          "bottom": 684,
+          "text": "剩余额度"
+        },
+        {
+          "x": 153.875,
+          "y": 670,
+          "right": 183,
+          "bottom": 684,
+          "text": "$53.77"
+        }
+      ],
+      "ok": true
+    }
+  },
+  {
+    "name": "unlocked host-mounted capsule can detach and drag",
+    "pass": true
+  },
+  {
+    "name": "narrow viewport clamps position",
+    "pass": true,
+    "data": {
+      "x": 45,
+      "y": 90,
+      "w": 168,
+      "h": 382,
+      "bottom": 472,
+      "right": 213,
+      "small": "none",
+      "detail": "grid",
+      "lock": "grid",
+      "refresh": "grid",
+      "open": true,
+      "locked": false,
+      "values": [
+        "¥58",
+        "86%",
+        "23%"
+      ],
+      "snapshot": {
+        "level": "warn",
+        "providers": [
+          {
+            "id": "deepseek",
+            "label": "DeepSeek",
+            "format": "deepseek-balance",
+            "status": "ok",
+            "summary": "¥58.36",
+            "observedAt": 1789372061964
+          },
+          {
+            "id": "opencode-go",
+            "label": "OpenCode Go",
+            "format": "opencode-usage",
+            "status": "warn",
+            "summary": "86%",
+            "observedAt": 1789372061966
+          },
+          {
+            "id": "command",
+            "label": "Command Code",
+            "format": "command-cost",
+            "status": "ok",
+            "summary": "23.2%",
+            "observedAt": 1789372061968
+          }
+        ],
+        "updatedAt": 1789372061968
+      }
+    }
+  },
+  {
+    "name": "narrow viewport text layout",
+    "pass": true,
+    "data": {
+      "capsule": {
+        "x": 45,
+        "y": 90,
+        "width": 168,
+        "height": 382,
+        "top": 90,
+        "right": 213,
+        "bottom": 472,
+        "left": 45
+      },
+      "lock": {
+        "x": 177,
+        "y": 95,
+        "width": 24,
+        "height": 24,
+        "top": 95,
+        "right": 201,
+        "bottom": 119,
+        "left": 177
+      },
+      "boxes": [
+        {
+          "x": 60,
+          "y": 124.5,
+          "right": 109.65625,
+          "bottom": 139.5,
+          "text": "DeepSeek"
+        },
+        {
+          "x": 158.765625,
+          "y": 123,
+          "right": 198,
+          "bottom": 140,
+          "text": "¥58.36"
+        },
+        {
+          "x": 60,
+          "y": 151,
+          "right": 113.078125,
+          "bottom": 166,
+          "text": "OpenCode"
+        },
+        {
+          "x": 60,
+          "y": 170,
+          "right": 87.9375,
+          "bottom": 185,
+          "text": "5小时"
+        },
+        {
+          "x": 152.125,
+          "y": 170,
+          "right": 198,
+          "bottom": 185,
+          "text": "10% 已用"
+        },
+        {
+          "x": 60,
+          "y": 191,
+          "right": 115.390625,
+          "bottom": 205,
+          "text": "4小时后重置"
+        },
+        {
+          "x": 60,
+          "y": 208,
+          "right": 71,
+          "bottom": 223,
+          "text": "周"
+        },
+        {
+          "x": 152.125,
+          "y": 208,
+          "right": 198,
+          "bottom": 223,
+          "text": "45% 已用"
+        },
+        {
+          "x": 60,
+          "y": 229,
+          "right": 105.390625,
+          "bottom": 243,
+          "text": "2天后重置"
+        },
+        {
+          "x": 60,
+          "y": 246,
+          "right": 71,
+          "bottom": 261,
+          "text": "月"
+        },
+        {
+          "x": 152.125,
+          "y": 246,
+          "right": 198,
+          "bottom": 261,
+          "text": "86% 已用"
+        },
+        {
+          "x": 60,
+          "y": 267,
+          "right": 110.78125,
+          "bottom": 281,
+          "text": "27天后重置"
+        },
+        {
+          "x": 60,
+          "y": 290,
+          "right": 137.5625,
+          "bottom": 305,
+          "text": "CommandCode"
+        },
+        {
+          "x": 60,
+          "y": 309,
+          "right": 87.9375,
+          "bottom": 324,
+          "text": "5小时"
+        },
+        {
+          "x": 149.734375,
+          "y": 309,
+          "right": 198,
+          "bottom": 324,
+          "text": "0.9% 已用"
+        },
+        {
+          "x": 60,
+          "y": 330,
+          "right": 115.390625,
+          "bottom": 344,
+          "text": "3小时后重置"
+        },
+        {
+          "x": 60,
+          "y": 347,
+          "right": 71,
+          "bottom": 362,
+          "text": "周"
+        },
+        {
+          "x": 149.734375,
+          "y": 347,
+          "right": 198,
+          "bottom": 362,
+          "text": "0.4% 已用"
+        },
+        {
+          "x": 60,
+          "y": 368,
+          "right": 105.390625,
+          "bottom": 382,
+          "text": "5天后重置"
+        },
+        {
+          "x": 60,
+          "y": 385,
+          "right": 71,
+          "bottom": 400,
+          "text": "月"
+        },
+        {
+          "x": 143.796875,
+          "y": 385,
+          "right": 198,
+          "bottom": 400,
+          "text": "23.2% 已用"
+        },
+        {
+          "x": 60,
+          "y": 406,
+          "right": 120,
+          "bottom": 420,
+          "text": "本期月度额度"
+        },
+        {
+          "x": 60,
+          "y": 423,
+          "right": 100,
+          "bottom": 437,
+          "text": "本期费用"
+        },
+        {
+          "x": 168.875,
+          "y": 423,
+          "right": 198,
+          "bottom": 437,
+          "text": "$16.24"
+        },
+        {
+          "x": 60,
+          "y": 442,
+          "right": 100,
+          "bottom": 456,
+          "text": "剩余额度"
+        },
+        {
+          "x": 168.875,
+          "y": 442,
+          "right": 198,
+          "bottom": 456,
+          "text": "$53.77"
+        }
+      ],
+      "ok": true
+    }
+  },
+  {
+    "name": "reduced motion respected",
+    "pass": true
+  },
+  {
+    "name": "no runtime errors",
+    "pass": true,
+    "data": []
+  }
+]

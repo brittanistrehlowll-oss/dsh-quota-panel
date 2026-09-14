@@ -1,7 +1,7 @@
 {
   "name": "dsh-quota-panel",
-  "description": "计费面板 (billing panel) for the dsh web surface: provider quota/balance widget — a collapsed glanceable capsule expanding into a Harness-native card, with server-side credential proxies for DeepSeek balance and OpenCode Zen Go usage windows, bilingual (中文/English) UI.",
-  "version": "0.3.0",
+  "description": "Minimal draggable quota capsule: one-line readings, two-line expanded view and a persistent position lock. No Whale Breath dependency.",
+  "version": "0.8.0",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -13,8 +13,23 @@
     "lib/index.js",
     "lib/index.d.ts",
     "lib/plugin-integration-v1.js",
+    "lib/capsule.css",
     "cordis.patch.yml"
   ],
+  "scripts": {
+    "test": "node scripts/test-page-script.mjs",
+    "demo": "node scripts/gen-demo.mjs",
+    "verify": "node scripts/verify-capsule.mjs",
+    "verify:dark": "node scripts/verify-capsule.mjs",
+    "verify:drag": "node scripts/verify-capsule.mjs",
+    "verify:route": "node scripts/verify-route.mjs",
+    "verify:desktop": "node scripts/verify-desktop-host.mjs",
+    "verify:package": "node scripts/verify-package.mjs",
+    "screenshot": "node scripts/verify-capsule.mjs",
+    "showcase": "node scripts/gen-showcase.mjs",
+    "pack": "node -e \"require('node:fs').mkdirSync('dist',{recursive:true})\" && npm pack --pack-destination dist",
+    "check": "npm run test && npm run demo && npm run verify"
+  },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
@@ -27,7 +42,9 @@
     "quota",
     "balance",
     "usage",
-    "opencode"
+    "cost",
+    "opencode",
+    "commandcode"
   ],
   "license": "MIT",
   "repository": {

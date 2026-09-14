@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # The plugin itself is zero-dependency and the checks import nothing from
+      # npm, so there is deliberately no install step. The browser scripts find
+      # the Chrome that ships with the ubuntu-latest image; set CHROME_PATH here
+      # if that ever moves.
+      - name: Page script: syntax + contract
+        run: node scripts/test-page-script.mjs
+
+      - name: Regenerate demo pages
+        run: node scripts/gen-demo.mjs
+
+      - name: Demo pages must be current (no uncommitted drift)
+        run: git diff --exit-code -- docs/demo.html docs/demo-dark.html
+
+      - name: Host route envelope (offline)
+        run: node scripts/verify-route.mjs
+
+      - name: Browser: both themes, geometry, lock, drag, keyboard and screenshots
+        run: node scripts/verify-capsule.mjs
+
+      # Catches a `files` whitelist that forgot something the plugin reads at
+      # import time (lib/plugin-integration-v1.js) before it ever reaches npm.
+      - name: Package: the tarball is self-sufficient
+        run: node scripts/verify-package.mjs
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: docs/verification/
+          if-no-files-found: error

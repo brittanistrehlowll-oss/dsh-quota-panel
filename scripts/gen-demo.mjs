@@ -20,27 +20,58 @@ const ctx = {
 	effect: (fn) => { fn(); return () => {}; }
 };
 plugin.apply(ctx, {
-	refreshMs: 60000,
+	refreshMs: 5000,
 	providers: [
 		{ id: 'deepseek', label: 'DeepSeek', credential: 'DEEPSEEK_API_KEY', endpoint: 'https://api.deepseek.com/user/balance', format: 'deepseek-balance', balanceTiers: { critical: 10, warn: 20, healthy: 50 } },
-		{ id: 'opencode-go', label: 'OpenCode Go', credential: 'OPENCODE_GO_API_KEY', endpoint: 'https://opencode.ai/zen/go/v1/usage', format: 'opencode-usage', windowLabels: { rolling: '五', weekly: '周', monthly: '月' }, warnPercent: 70, errorPercent: 90 }
+		{ id: 'opencode-go', label: 'OpenCode Go', credential: 'OPENCODE_GO_API_KEY', endpoint: 'https://opencode.ai/zen/go/v1/usage', format: 'opencode-usage', windowLabels: { rolling: '五', weekly: '周', monthly: '月' }, warnPercent: 70, errorPercent: 90 },
+		{ id: 'command', label: 'Command Code', credential: 'COMMAND_API_KEY', endpoint: 'https://api.commandcode.ai', format: 'command-cost', windowLabels: { fiveHour: '五', weekly: '周' } }
 	]
 });
 const injected = taps[0]('</body>');
 
+// Mock provider routes, answering with the same normalized envelope the real
+// host route produces. `window.__DSH_QUOTA_DEMO__.fail` lists route ids that
+// should answer 502 instead — it can be preset from the page URL
+// (`demo.html?fail=command`) to exercise the never-loaded error row, or
+// toggled at runtime to prove a failed refresh keeps the last good reading.
+// The Command Code numbers mirror a real /alpha/billing/credits +
+// /alpha/usage/summary pair (GOAT plan: $70/month, $16.24 spent, 803M tokens).
 const mockFetch = `<script>
+window.__DSH_QUOTA_DEMO__ = { fail: (function () {
+  var match = /[?&]fail=([^&]*)/.exec(location.search);
+  return match && match[1] ? decodeURIComponent(match[1]).split(',') : [];
+})() };
 window.fetch = function (url) {
+  var id = String(url).split('/').pop();
+  var demo = window.__DSH_QUOTA_DEMO__;
+  if ((demo.fail || []).indexOf(id) >= 0) {
+    return Promise.resolve({ status: 502, ok: false, text: function () {
+      return Promise.resolve(JSON.stringify({ ok: false, error: { code: 'upstream', status: 502, message: 'demo outage' } }));
+    } });
+  }
   var data;
-  if (String(url).indexOf('deepseek') >= 0) {
+  if (id === 'deepseek') {
     data = { is_available: true, balance_infos: [{ currency: 'CNY', total_balance: '58.36', granted_balance: '0.00', topped_up_balance: '58.36' }] };
-  } else {
+  } else if (id === 'opencode-go') {
     data = { usage: {
       rolling: { status: 'ok', percent: 10, resetsAt: new Date(Date.now() + 4 * 3600e3).toISOString() },
       weekly:  { status: 'ok', percent: 45, resetsAt: new Date(Date.now() + 2 * 86400e3).toISOString() },
-      monthly: { status: 'ok', percent: 22, resetsAt: new Date(Date.now() + 27 * 86400e3).toISOString() }
+      monthly: { status: 'ok', percent: 86, resetsAt: new Date(Date.now() + 27 * 86400e3).toISOString() }
     } };
+  } else {
+    data = {
+      credits: { monthlyCredits: 53.7672201717, purchasedCredits: 0, freeCredits: 0 },
+      windowLimits: {
+        limited: true, exceeded: null,
+        fiveHour: { used: 0.1252328, cap: 14, exceeded: false, resetAt: Date.now() + 3 * 3600e3 },
+        weekly: { used: 0.1252328, cap: 35, exceeded: false, resetAt: Date.now() + 5 * 86400e3 }
+      },
+      usage: { totalMonthlyCredits: 16.2385200429, totalCount: 2787, totalCost: 16.2385200429, averageCost: 0.005826523158557588, successRate: 100, totalTokensIn: 800696970, totalTokensOut: 2290409, totalTokens: 802987379, periodBasis: 'billing-period' }
+    };
   }
-  return Promise.resolve({ json: function () { return Promise.resolve(data); } });
+  return Promise.resolve({ status: 200, ok: true, text: function () {
+    return Promise.resolve(JSON.stringify({ ok: true, data: data }));
+  } });
 };
 <\/script>`;
 
@@ -109,7 +140,7 @@ const PAGE = (title, darkAttr, tokens) => `<!doctype html>
     <div class="chat">
       <div class="msg"><div class="who">助手</div><p>你好！我是运行在 DeepSeek Harness 里的编程智能体。</p></div>
       <div class="msg"><div class="who">用户</div><p>帮我看看账户余额和用量。</p></div>
-      <div class="msg"><div class="who">助手</div><p>好的，右下角卡片实时显示各提供方的配额情况。</p></div>
+      <div class="msg"><div class="who">助手</div><p>左下角是一行额度胶囊。点击展开、再次点击收起；展开后可锁定或解锁位置。这里使用示例数据，不连接真实账户。</p></div>
     </div>
     <div class="composer"><div class="box">输入消息…</div></div>
   </div>
