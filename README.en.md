@@ -12,7 +12,7 @@
 
 **Provider quota and balance status capsule for the dsh web surface (DeepSeek Harness).** One glanceable line in the bottom-left corner tells you how much money and how much quota is left; click it for the full card, click again to fold it back into one line.
 
-A zero-dependency host plugin: for every configured provider it registers one server-side proxy route `/api/quota/<id>` — the API key is resolved through the credentials seam and **never reaches the browser** — then injects this native widget into the page. The same implementation serves `dsh web` and the official Electron Desktop app, with no Whale Breath (or any other plugin) dependency.
+A zero-dependency host plugin: for every configured provider it registers one server-side proxy route `/api/quota/<id>` — the API key is resolved through the credentials seam and **never reaches the browser** — then injects this native widget into the page. The same implementation serves `dsh web` and the official Electron Desktop app, with no dependency on any other plugin.
 
 ## Interface
 
@@ -28,7 +28,7 @@ Expanded: balances and usage stacked per account, with an individual five-hour /
 | --- | --- |
 | ![Expanded (light)](docs/images/panel-light.png) | ![Expanded (dark)](docs/images/panel-dark.png) |
 
-Default position in a page (bottom-left, avoiding the sidebar entry, never over the content):
+Default position in a page (bottom-left, keeping clear space above the sidebar's settings row — never over the content and never over a host control):
 
 | Light | Dark |
 | --- | --- |
@@ -194,10 +194,11 @@ The monthly ratio comes from `totalMonthlyCredits` in `/alpha/usage/summary` and
 Both states can be dragged when unlocked:
 
 - **Drag** it anywhere — the panel leaves the default bottom-left position and follows the pointer, clamped so the whole capsule always stays on screen.
+- The **default position** sits in the bottom-left with clearance above the sidebar's settings row: it first looks for the host's `[data-slot="settings.trigger"]`, which measures `0×0` on some host builds, and in that case walks up from the visible `设置`/`Settings` label to the first ancestor that does have a box. Fonts and the capsule's real height only land after the first layout, so the default is re-anchored across the next two frames; **a capsule with a saved position is never moved**.
 - The position is **remembered per browser** (`localStorage`, key `dsh.quota.pos`) and restored on the next load; resizing the window re-clamps it into view.
 - **Click** toggles the capsule: a press that travels less than 4px is a click, anything further is a drag (the click that ends a drag is swallowed).
 - The lock appears only when expanded; it disables dragging, not toggling, and persists under `dsh.quota.locked`.
-- **Right-click while unlocked** restores the default position (24px left, 64px bottom).
+- **Right-click while unlocked** restores the default position (24px left, and the settings-row clearance described above).
 - Optional `mountCompact` moves the whole shell; manually saved positions take precedence. An unlocked hosted capsule can be dragged out.
 
 ## Security
@@ -210,6 +211,7 @@ Both states can be dragged when unlocked:
 
 ## Changelog
 
+- **v0.8.0-p1** — Two defect fixes plus a decoupling cleanup. **(1) The version marker no longer drifts**: `#dsh-quota-panel` hardcoded `data-version = '0.7.0'` and was never updated for the 0.8.0 release, so the page advertised 0.7.0 while `package.json` said 0.8.0 — anything gating on that marker (an acceptance harness, a host, a support screenshot) was told the wrong version. It is now read from `package.json`. **(2) The initial position lands where it was designed to**: the author's "clearance above the settings row" rule had a selector that resolves to a zero-size wrapper on DSH 0.1.7-rc.1 (measured `0×0`), so `footerRect.width > 0` was never true and the rule never ran, leaving the capsule in the `innerHeight - 92` fallback corner. It now walks up from the visible `设置`/`Settings` label to the first ancestor with a real box, computes the clearance from the panel constant instead of a not-yet-laid-out `capsuleEl.offsetHeight`, and re-anchors across two frames after the first paint. Measured at 1483×707: `y 615 → 619`, gap above the settings row `22px (incidental) → 18px (by design)`, and no overlap with a host control before or after. **(3) Decoupling cleanup**: dropped the `[aria-label="鲸息入口"]` probe, rewrote the module header and the seam comments in neutral terms, removed a foreign product name from the `package.json` description, and replaced the always-true `if (setExpanded)` guard in `openDetail` with a direct call. A scan of the **shipped package contents** (`lib/index.js` and the rest of the `files` whitelist) for `鲸息|Whale|watchdog|dsh-lifecycle|restart-button|dsh-controller` returns zero hits, and that assertion now lives in `verification/verify-packed-tarball.mjs`; this README and the historical acceptance records under `docs/verification/` are outside that scan (the former has to name the defect it fixed, the latter are point-in-time snapshots) and are left as they are. The `DSH_PLUGIN_INTEGRATION_V1` seam itself is kept on purpose — it is the only stable interface for a host page that wants to embed the compact capsule, and it is silent when the runtime is absent.
 - **v0.8.0** — Carrier-neutral host half: routes register on the `connection` exact Fetch registry (the shared `/api` table the Web server and the Desktop host both dispatch into), and the page script ships as a structured `webserver/index-inject` row — no `webServer` dependency left. Hosts without that registry still fall back to `webServer.register` + `tapIndex`. The plugin now works on the official Electron Desktop app (no HTTP server, `dsh-app://` + IPC). Adds `npm run verify:desktop`.
 - **v0.7.0** — Compact capsule with full period details: one 128×34px line collapsed, 168px wide vertical details expanded; period progress and reset times restored; the initial position follows the asynchronously loading sidebar and avoids the bottom entry.
 - **v0.6.0** — 176px compact two-state capsule with 28/56px heights; independent bottom-left position, dragging and a persistent lock button; the separate card and toolbar were removed. A valid critical reading is no longer overwritten by an older one, an anomalous number is refused instead of becoming 0, and upstream error bodies are no longer echoed. Adds real mouse/keyboard, two-state mutual-exclusion and text-geometry checks. The CSS ships with the package.

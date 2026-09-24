@@ -112,16 +112,14 @@ window.fetch = function (url) {
  * global, WITHOUT creating any user-visible unified UI (no dock, no overview,
  * no console, no brand).
  *
- * Why this exists: dsh-lifecycle, dsh-quota-panel and dsh-pet-shura are
- * installed independently and inject their own page scripts. When several are
- * present we want a clean seam between them (e.g. lifecycle hosts a compact
- * quota capsule without reaching into quota's DOM classes). This runtime is
- * that seam — and it doubles as the internal extension point a future
- * "Whale Breath"/鲸息 layer can reuse without anyone rearchitecting.
+ * Why this exists: independent DSH page plugins each inject their own script.
+ * When several are present they need one stable seam between them — for
+ * example, a host that embeds this plugin's compact capsule without reaching
+ * into its DOM classes. This runtime is that seam.
  *
  * Contract (each plugin registers one module):
  * {
- *   id,            // unique module id, e.g. 'quota', 'lifecycle', 'guardian'
+ *   id,            // unique module id, e.g. 'quota'
  *   kind,          // 'resource' | 'control' | 'ambient'  (informational)
  *   title,         // short display label (informational only)
  *   getSnapshot(), // () => plain JSON-able status object  (guarded)
@@ -270,6 +268,7 @@ window.fetch = function (url) {
 (function () {
   var AUTO_MS = 5000;
   var ROWS = [{"id":"deepseek","label":"DeepSeek","format":"deepseek-balance","windowLabels":null,"warnPercent":70,"errorPercent":90,"balanceTiers":{"critical":10,"warn":20,"healthy":50},"currency":null},{"id":"opencode-go","label":"OpenCode Go","format":"opencode-usage","windowLabels":{"rolling":"五","weekly":"周","monthly":"月","fiveHour":""},"warnPercent":70,"errorPercent":90,"balanceTiers":{"critical":10,"warn":20,"healthy":50},"currency":null},{"id":"command","label":"Command Code","format":"command-cost","windowLabels":{"rolling":"","weekly":"周","monthly":"","fiveHour":"五"},"warnPercent":70,"errorPercent":90,"balanceTiers":{"critical":10,"warn":20,"healthy":50},"currency":null}];
+  var VERSION = "0.8.0";
   var panelId = 'dsh-quota-panel';
   var capsuleId = 'dsh-quota-capsule';
   var cardId = 'dsh-quota-detail';
@@ -783,6 +782,7 @@ window.fetch = function (url) {
   // Position always refers to the 28px shell, not the animated button.
   // Expanding grows upward from its bottom edge. v1 saved positions survive.
   var POS_KEY = 'dsh.quota.pos';
+  var PANEL_H = 28;
   var DRAG_SLOP = 4;
   var EDGE_PAD = 8;
   var pos = null;
@@ -833,10 +833,30 @@ window.fetch = function (url) {
       return;
     }
     var defaultPos = { x: 24, y: window.innerHeight - 92 };
-    var footer = document.querySelector('[aria-label="鲸息入口"]') || document.querySelector('[data-slot="settings.trigger"]');
+    // Anchor on the host's settings row so the default position clears it.
+    // The row's own [data-slot="settings.trigger"] wrapper has no box on some
+    // host builds, so fall back to the visible label and walk up to the first
+    // ancestor that does have one.
+    var footer = document.querySelector('[data-slot="settings.trigger"]');
+    if (!footer || !footer.getBoundingClientRect().width) {
+      var footerLabel = null;
+      var labelNodes = document.querySelectorAll('span,div,button,a,p');
+      for (var li = 0; li < labelNodes.length && !footerLabel; li++) {
+        var node = labelNodes[li];
+        var text = node.children.length === 0 ? node.textContent.trim() : '';
+        if (text === '设置' || text === 'Settings') footerLabel = node;
+      }
+      footer = footerLabel;
+      while (footer && footer !== document.body) {
+        var fr = footer.getBoundingClientRect();
+        if (fr.width > 0 && fr.height > 0) break;
+        footer = footer.parentElement;
+      }
+      if (footer === document.body) footer = footerLabel;
+    }
     if (footer) {
       var footerRect = footer.getBoundingClientRect();
-      if (footerRect.width > 0 && footerRect.left < window.innerWidth / 2) defaultPos.y = footerRect.top - 40;
+      if (footerRect.width > 0 && footerRect.left < window.innerWidth / 2) defaultPos.y = footerRect.top - Math.max(0, capsuleEl.offsetHeight - PANEL_H) - PANEL_H - 12;
     }
     var clamped = clampToViewport(pos || defaultPos);
     panelEl.style.left = Math.round(clamped.x) + 'px';
@@ -924,7 +944,7 @@ window.fetch = function (url) {
   function createPanel() {
     var panel = el('div');
     panel.id = panelId;
-    panel.dataset.version = '0.7.0';
+    panel.dataset.version = VERSION;
     panel.style.setProperty('--quota-columns', String(Math.max(1, ROWS.length)));
 
     // Collapsed capsule: one dot + value pair per provider, no text labels.
@@ -1047,7 +1067,14 @@ window.fetch = function (url) {
     anchorPanel();
     // Fonts/paint land after the first layout: re-anchor once, then keep the
     // widget inside the viewport on resize.
-    requestAnimationFrame(anchorPanel);
+    // Re-anchor on the next two frames: fonts and the capsule's own height land
+    // after the first layout, and a default computed before that would sit on
+    // the settings row. anchorPanel only re-runs the default while the user has
+    // not saved a position, so a placed widget is never moved.
+    requestAnimationFrame(function () {
+      anchorPanel();
+      requestAnimationFrame(anchorPanel);
+    });
     window.addEventListener('resize', function () {
       anchorPanel();
     });
@@ -1076,9 +1103,9 @@ window.fetch = function (url) {
     registerQuotaModule();
   }
 
-  // ── Internal integration registration (user-invisible seam) ───────────
-  // Runs after mount so the DOM (capsule, card, state) exists. Uses the
-  // neutral runtime only when present; never breaks standalone behaviour.
+  // ── Optional host-page integration (user-invisible seam) ──────────────
+  // Runs after mount so the DOM (capsule, card, state) exists. Registered
+  // only when the neutral runtime is present; never affects standalone use.
   function registerQuotaModule() {
     try {
       var rt = window.DSH_PLUGIN_INTEGRATION_V1;
@@ -1129,7 +1156,7 @@ window.fetch = function (url) {
           setExpanded(false);
         },
         openDetail: function () {
-          if (setExpanded) setExpanded(true);
+          setExpanded(true);
         }
       });
     } catch { /* an exception here must never break the widget */ }
