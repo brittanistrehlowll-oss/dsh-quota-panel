@@ -1,6 +1,6 @@
 {
   "name": "dsh-quota-panel",
-  "description": "Minimal draggable quota capsule: one-line readings, two-line expanded view and a persistent position lock. No Whale Breath dependency.",
+  "description": "Minimal draggable quota capsule: one-line readings, two-line expanded view and a persistent position lock.",
   "version": "0.8.0",
   "type": "module",
   "main": "lib/index.js",
